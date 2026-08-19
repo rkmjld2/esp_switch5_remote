@@ -21,21 +21,6 @@ Tables:
 Timezone:
     Asia/Kolkata
 
-FEATURES:
-    - Administrator login
-    - Controller selection
-    - Calendar Start Time
-    - Calendar End Time
-    - Current IST Time
-    - Controller information
-    - Last Seen
-    - D1-D8 control
-    - Secure manual Device Token Change
-    - CSRF protection
-
-IMPORTANT:
-    Device Token is NEVER displayed on the web page.
-
 ============================================================
 */
 
@@ -53,11 +38,6 @@ date_default_timezone_set("Asia/Kolkata");
 
 require_once __DIR__ . "/db.php";
 
-
-/* =========================================================
-   SESSION
-========================================================= */
-
 session_start();
 
 
@@ -65,26 +45,7 @@ session_start();
    ADMIN PASSWORD
 ========================================================= */
 
-$admin_password =
-    getenv("ADMIN_PASSWORD") ?: "";
-
-
-/* =========================================================
-   CSRF TOKEN
-========================================================= */
-
-if (
-    !isset($_SESSION["csrf_token"]) ||
-    !is_string($_SESSION["csrf_token"]) ||
-    strlen($_SESSION["csrf_token"]) < 32
-) {
-
-    $_SESSION["csrf_token"] =
-        bin2hex(random_bytes(32));
-}
-
-$csrf_token =
-    $_SESSION["csrf_token"];
+$admin_password = getenv("ADMIN_PASSWORD") ?: "";
 
 
 /* =========================================================
@@ -94,22 +55,6 @@ $csrf_token =
 if (isset($_GET["logout"])) {
 
     $_SESSION = [];
-
-    if (ini_get("session.use_cookies")) {
-
-        $params =
-            session_get_cookie_params();
-
-        setcookie(
-            session_name(),
-            '',
-            time() - 42000,
-            $params["path"],
-            $params["domain"],
-            $params["secure"],
-            $params["httponly"]
-        );
-    }
 
     session_destroy();
 
@@ -127,25 +72,14 @@ $login_error = "";
 
 if (isset($_POST["login"])) {
 
-    $password =
-        $_POST["password"] ?? "";
+    $password = $_POST["password"] ?? "";
 
     if (
         $admin_password !== "" &&
-        is_string($password) &&
-        hash_equals(
-            $admin_password,
-            $password
-        )
+        hash_equals($admin_password, $password)
     ) {
 
-        session_regenerate_id(true);
-
-        $_SESSION["esp_admin"] =
-            true;
-
-        $_SESSION["csrf_token"] =
-            bin2hex(random_bytes(32));
+        $_SESSION["esp_admin"] = true;
 
         header("Location: index.php");
 
@@ -153,8 +87,7 @@ if (isset($_POST["login"])) {
 
     } else {
 
-        $login_error =
-            "Invalid password.";
+        $login_error = "Invalid password.";
     }
 }
 
@@ -169,7 +102,6 @@ if (
 ) {
 ?>
 <!DOCTYPE html>
-
 <html lang="en">
 
 <head>
@@ -179,9 +111,7 @@ if (
 <meta name="viewport"
       content="width=device-width, initial-scale=1.0">
 
-<title>
-ESP-SWITCH5 REMOTE - Login
-</title>
+<title>ESP-SWITCH5 REMOTE - Login</title>
 
 <style>
 
@@ -190,99 +120,60 @@ ESP-SWITCH5 REMOTE - Login
 }
 
 body {
-
     margin: 0;
-
     padding: 20px;
-
-    font-family:
-        Arial,
-        Helvetica,
-        sans-serif;
-
+    font-family: Arial, Helvetica, sans-serif;
     background: #f2f2f2;
 }
 
 .login-box {
-
     max-width: 420px;
-
     margin: 80px auto;
-
     background: white;
-
     padding: 30px;
-
     border-radius: 12px;
-
-    box-shadow:
-        0 3px 15px
-        rgba(0,0,0,0.15);
-
+    box-shadow: 0 3px 15px rgba(0,0,0,0.15);
     text-align: center;
 }
 
 h1 {
-
     margin-top: 0;
-
     color: #333;
 }
 
 input[type="password"] {
-
     width: 100%;
-
     padding: 12px;
-
     font-size: 16px;
-
     border: 1px solid #aaa;
-
     border-radius: 6px;
-
     margin: 15px 0;
 }
 
 button {
-
     width: 100%;
-
     padding: 12px;
-
     border: none;
-
     border-radius: 6px;
-
     background: #007bff;
-
     color: white;
-
     font-size: 16px;
-
     cursor: pointer;
 }
 
 button:hover {
-
     opacity: 0.85;
 }
 
 .error {
-
     color: #dc3545;
-
     margin-bottom: 10px;
-
     font-weight: bold;
 }
 
 .small {
-
     margin-top: 15px;
-
     color: #777;
-
     font-size: 13px;
 }
 
@@ -294,26 +185,17 @@ button:hover {
 
 <div class="login-box">
 
-<h1>
-ESP-SWITCH5 REMOTE
-</h1>
+<h1>ESP-SWITCH5 REMOTE</h1>
 
-<p>
-Administrator Login
-</p>
+<p>Administrator Login</p>
 
 <?php
 
 if ($login_error !== "") {
 
-    echo
-        '<div class="error">' .
-        htmlspecialchars(
-            $login_error,
-            ENT_QUOTES,
-            "UTF-8"
-        ) .
-        '</div>';
+    echo '<div class="error">' .
+         htmlspecialchars($login_error, ENT_QUOTES, 'UTF-8') .
+         '</div>';
 }
 
 ?>
@@ -359,9 +241,7 @@ exit;
 ========================================================= */
 
 $selected_controller =
-    trim(
-        $_GET["controller_id"] ?? ""
-    );
+    trim($_GET["controller_id"] ?? "");
 
 
 /* =========================================================
@@ -374,101 +254,55 @@ $message_type = "";
 
 
 /* =========================================================
-   CSRF VALIDATION FUNCTION
-========================================================= */
-
-function validate_csrf_token(
-    $posted_token,
-    $session_token
-) {
-
-    return (
-        is_string($posted_token) &&
-        is_string($session_token) &&
-        $posted_token !== "" &&
-        hash_equals(
-            $session_token,
-            $posted_token
-        )
-    );
-}
-
-
-/* =========================================================
    SAVE START TIME
 ========================================================= */
 
 if (isset($_POST["save_start"])) {
 
     $controller_id =
-        trim(
-            $_POST["controller_id"] ?? ""
-        );
+        trim($_POST["controller_id"] ?? "");
 
     $start_time =
-        trim(
-            $_POST["start_time"] ?? ""
-        );
-
-    $posted_csrf =
-        $_POST["csrf_token"] ?? "";
+        trim($_POST["start_time"] ?? "");
 
 
-    if (
-        !validate_csrf_token(
-            $posted_csrf,
-            $_SESSION["csrf_token"]
-        )
-    ) {
+    if ($controller_id === "") {
 
-        $message =
-            "Security validation failed. Please try again.";
-
-        $message_type =
-            "error";
-
-    }
-    elseif ($controller_id === "") {
-
-        $message =
-            "Controller ID missing.";
-
-        $message_type =
-            "error";
+        $message = "Controller ID missing.";
+        $message_type = "error";
 
     }
     elseif ($start_time === "") {
 
-        $message =
-            "Start date and time missing.";
-
-        $message_type =
-            "error";
+        $message = "Start date and time missing.";
+        $message_type = "error";
 
     }
     else {
 
+        /*
+         * HTML datetime-local gives:
+         *
+         * YYYY-MM-DDTHH:MM
+         *
+         * Convert to:
+         *
+         * YYYY-MM-DD HH:MM:00
+         */
+
         $start_datetime =
-            str_replace(
-                "T",
-                " ",
-                $start_time
-            );
+            str_replace("T", " ", $start_time);
 
-        if (
-            strlen($start_datetime) === 16
-        ) {
-
+        if (strlen($start_datetime) === 16) {
             $start_datetime .= ":00";
         }
 
 
-        $stmt =
-            $conn->prepare("
-                UPDATE controllers
-                SET start_time = ?
-                WHERE controller_id = ?
-            ");
+        $stmt = $conn->prepare("
+            UPDATE controllers
+            SET start_time = ?
+            WHERE controller_id = ?
+        ");
 
         if ($stmt) {
 
@@ -507,8 +341,7 @@ if (isset($_POST["save_start"])) {
         }
     }
 
-    $selected_controller =
-        $controller_id;
+    $selected_controller = $controller_id;
 }
 
 
@@ -519,74 +352,39 @@ if (isset($_POST["save_start"])) {
 if (isset($_POST["save_end"])) {
 
     $controller_id =
-        trim(
-            $_POST["controller_id"] ?? ""
-        );
+        trim($_POST["controller_id"] ?? "");
 
     $end_time =
-        trim(
-            $_POST["end_time"] ?? ""
-        );
-
-    $posted_csrf =
-        $_POST["csrf_token"] ?? "";
+        trim($_POST["end_time"] ?? "");
 
 
-    if (
-        !validate_csrf_token(
-            $posted_csrf,
-            $_SESSION["csrf_token"]
-        )
-    ) {
+    if ($controller_id === "") {
 
-        $message =
-            "Security validation failed. Please try again.";
-
-        $message_type =
-            "error";
-
-    }
-    elseif ($controller_id === "") {
-
-        $message =
-            "Controller ID missing.";
-
-        $message_type =
-            "error";
+        $message = "Controller ID missing.";
+        $message_type = "error";
 
     }
     elseif ($end_time === "") {
 
-        $message =
-            "End date and time missing.";
-
-        $message_type =
-            "error";
+        $message = "End date and time missing.";
+        $message_type = "error";
 
     }
     else {
 
         $end_datetime =
-            str_replace(
-                "T",
-                " ",
-                $end_time
-            );
+            str_replace("T", " ", $end_time);
 
-        if (
-            strlen($end_datetime) === 16
-        ) {
-
+        if (strlen($end_datetime) === 16) {
             $end_datetime .= ":00";
         }
 
 
-        $stmt =
-            $conn->prepare("
-                UPDATE controllers
-                SET end_time = ?
-                WHERE controller_id = ?
-            ");
+        $stmt = $conn->prepare("
+            UPDATE controllers
+            SET end_time = ?
+            WHERE controller_id = ?
+        ");
 
         if ($stmt) {
 
@@ -625,218 +423,7 @@ if (isset($_POST["save_end"])) {
         }
     }
 
-    $selected_controller =
-        $controller_id;
-}
-
-
-/* =========================================================
-   CHANGE DEVICE TOKEN
-========================================================= */
-
-if (isset($_POST["change_token"])) {
-
-    $controller_id =
-        trim(
-            $_POST["controller_id"] ?? ""
-        );
-
-    $new_device_token =
-        trim(
-            $_POST["new_device_token"] ?? ""
-        );
-
-    $posted_csrf =
-        $_POST["csrf_token"] ?? "";
-
-
-    /* -----------------------------------------------------
-       CSRF CHECK
-    ----------------------------------------------------- */
-
-    if (
-        !validate_csrf_token(
-            $posted_csrf,
-            $_SESSION["csrf_token"]
-        )
-    ) {
-
-        $message =
-            "Security validation failed. Please try again.";
-
-        $message_type =
-            "error";
-    }
-
-
-    /* -----------------------------------------------------
-       CONTROLLER CHECK
-    ----------------------------------------------------- */
-
-    elseif ($controller_id === "") {
-
-        $message =
-            "Controller ID missing.";
-
-        $message_type =
-            "error";
-    }
-
-
-    /* -----------------------------------------------------
-       TOKEN VALIDATION
-    ----------------------------------------------------- */
-
-    elseif ($new_device_token === "") {
-
-        $message =
-            "New device token cannot be empty.";
-
-        $message_type =
-            "error";
-    }
-
-    /*
-     * Universal manual token format.
-     *
-     * Allowed:
-     * A-Z
-     * a-z
-     * 0-9
-     * -
-     * _
-     * .
-     *
-     * Length:
-     * 8 to 128 characters
-     */
-
-    elseif (
-        !preg_match(
-            '/^[A-Za-z0-9._-]{8,128}$/',
-            $new_device_token
-        )
-    ) {
-
-        $message =
-            "Invalid token. Use 8-128 characters: " .
-            "letters, numbers, hyphen (-), underscore (_) " .
-            "or dot (.).";
-
-        $message_type =
-            "error";
-    }
-
-    else {
-
-        /*
-         * Confirm that the controller exists.
-         */
-
-        $stmt =
-            $conn->prepare("
-                SELECT controller_id
-                FROM controllers
-                WHERE controller_id = ?
-                LIMIT 1
-            ");
-
-        if (!$stmt) {
-
-            $message =
-                "Controller query failed.";
-
-            $message_type =
-                "error";
-
-        } else {
-
-            $stmt->bind_param(
-                "s",
-                $controller_id
-            );
-
-            $stmt->execute();
-
-            $result =
-                $stmt->get_result();
-
-
-            if (
-                $result->num_rows === 0
-            ) {
-
-                $message =
-                    "Controller not found.";
-
-                $message_type =
-                    "error";
-
-            } else {
-
-                /*
-                 * Update the token.
-                 *
-                 * The old token immediately becomes
-                 * invalid for api.php.
-                 */
-
-                $update =
-                    $conn->prepare("
-                        UPDATE controllers
-                        SET device_token = ?
-                        WHERE controller_id = ?
-                    ");
-
-
-                if (!$update) {
-
-                    $message =
-                        "Device token update preparation failed.";
-
-                    $message_type =
-                        "error";
-
-                } else {
-
-                    $update->bind_param(
-                        "ss",
-                        $new_device_token,
-                        $controller_id
-                    );
-
-
-                    if (
-                        $update->execute()
-                    ) {
-
-                        $message =
-                            "Device token changed successfully. " .
-                            "The old token is now invalid.";
-
-                        $message_type =
-                            "success";
-
-                    } else {
-
-                        $message =
-                            "Device token change failed.";
-
-                        $message_type =
-                            "error";
-                    }
-
-
-                    $update->close();
-                }
-            }
-
-            $stmt->close();
-        }
-    }
-
-    $selected_controller =
-        $controller_id;
+    $selected_controller = $controller_id;
 }
 
 
@@ -847,15 +434,11 @@ if (isset($_POST["change_token"])) {
 if (isset($_POST["set_pin"])) {
 
     $controller_id =
-        trim(
-            $_POST["controller_id"] ?? ""
-        );
+        trim($_POST["controller_id"] ?? "");
 
     $pin =
         strtoupper(
-            trim(
-                $_POST["pin"] ?? ""
-            )
+            trim($_POST["pin"] ?? "")
         );
 
     $value =
@@ -863,68 +446,33 @@ if (isset($_POST["set_pin"])) {
             ? (int)$_POST["value"]
             : -1;
 
-    $posted_csrf =
-        $_POST["csrf_token"] ?? "";
 
+    if ($controller_id === "") {
 
-    if (
-        !validate_csrf_token(
-            $posted_csrf,
-            $_SESSION["csrf_token"]
-        )
-    ) {
-
-        $message =
-            "Security validation failed. Please try again.";
-
-        $message_type =
-            "error";
+        $message = "Controller ID missing.";
+        $message_type = "error";
 
     }
-    elseif ($controller_id === "") {
+    elseif (!preg_match('/^D[1-8]$/', $pin)) {
 
-        $message =
-            "Controller ID missing.";
-
-        $message_type =
-            "error";
+        $message = "Invalid pin.";
+        $message_type = "error";
 
     }
-    elseif (
-        !preg_match(
-            '/^D[1-8]$/',
-            $pin
-        )
-    ) {
+    elseif ($value !== 0 && $value !== 1) {
 
-        $message =
-            "Invalid pin.";
-
-        $message_type =
-            "error";
-
-    }
-    elseif (
-        $value !== 0 &&
-        $value !== 1
-    ) {
-
-        $message =
-            "Invalid value.";
-
-        $message_type =
-            "error";
+        $message = "Invalid value.";
+        $message_type = "error";
 
     }
     else {
 
-        $stmt =
-            $conn->prepare("
-                SELECT active
-                FROM controllers
-                WHERE controller_id = ?
-                LIMIT 1
-            ");
+        $stmt = $conn->prepare("
+            SELECT active
+            FROM controllers
+            WHERE controller_id = ?
+            LIMIT 1
+        ");
 
         if ($stmt) {
 
@@ -938,10 +486,7 @@ if (isset($_POST["set_pin"])) {
             $result =
                 $stmt->get_result();
 
-
-            if (
-                $result->num_rows === 0
-            ) {
+            if ($result->num_rows === 0) {
 
                 $message =
                     "Controller not found.";
@@ -954,10 +499,7 @@ if (isset($_POST["set_pin"])) {
                 $controller =
                     $result->fetch_assoc();
 
-
-                if (
-                    (int)$controller["active"] !== 1
-                ) {
+                if ((int)$controller["active"] !== 1) {
 
                     $message =
                         "Controller is inactive.";
@@ -967,16 +509,19 @@ if (isset($_POST["set_pin"])) {
 
                 } else {
 
+                    /*
+                     * PIN has already been validated
+                     * as D1-D8.
+                     */
+
                     $sql = "
                         UPDATE esp_control
                         SET `$pin` = ?
                         WHERE controller_id = ?
                     ";
 
-
                     $update =
                         $conn->prepare($sql);
-
 
                     if (!$update) {
 
@@ -994,19 +539,12 @@ if (isset($_POST["set_pin"])) {
                             $controller_id
                         );
 
-
-                        if (
-                            $update->execute()
-                        ) {
+                        if ($update->execute()) {
 
                             $message =
                                 $pin .
                                 " changed to " .
-                                (
-                                    $value
-                                    ? "ON"
-                                    : "OFF"
-                                );
+                                ($value ? "ON" : "OFF");
 
                             $message_type =
                                 "success";
@@ -1019,7 +557,6 @@ if (isset($_POST["set_pin"])) {
                             $message_type =
                                 "error";
                         }
-
 
                         $update->close();
                     }
@@ -1038,8 +575,7 @@ if (isset($_POST["set_pin"])) {
         }
     }
 
-    $selected_controller =
-        $controller_id;
+    $selected_controller = $controller_id;
 }
 
 
@@ -1049,28 +585,21 @@ if (isset($_POST["set_pin"])) {
 
 $controllers = [];
 
-
-$result =
-    $conn->query("
-        SELECT
-            controller_id,
-            customer_name,
-            active
-        FROM controllers
-        WHERE active = 1
-        ORDER BY controller_id
-    ");
-
+$result = $conn->query("
+    SELECT
+        controller_id,
+        customer_name,
+        active
+    FROM controllers
+    WHERE active = 1
+    ORDER BY controller_id
+");
 
 if ($result) {
 
-    while (
-        $row =
-            $result->fetch_assoc()
-    ) {
+    while ($row = $result->fetch_assoc()) {
 
-        $controllers[] =
-            $row;
+        $controllers[] = $row;
     }
 }
 
@@ -1083,8 +612,7 @@ $selected_customer = "";
 
 $selected_active = 0;
 
-$selected_last_seen =
-    "Not yet seen";
+$selected_last_seen = "";
 
 $selected_start_time = "";
 
@@ -1093,20 +621,18 @@ $selected_end_time = "";
 
 if ($selected_controller !== "") {
 
-    $stmt =
-        $conn->prepare("
-            SELECT
-                controller_id,
-                customer_name,
-                active,
-                last_seen,
-                start_time,
-                end_time
-            FROM controllers
-            WHERE controller_id = ?
-            LIMIT 1
-        ");
-
+    $stmt = $conn->prepare("
+        SELECT
+            controller_id,
+            customer_name,
+            active,
+            last_seen,
+            start_time,
+            end_time
+        FROM controllers
+        WHERE controller_id = ?
+        LIMIT 1
+    ");
 
     if ($stmt) {
 
@@ -1120,10 +646,7 @@ if ($selected_controller !== "") {
         $result =
             $stmt->get_result();
 
-
-        if (
-            $result->num_rows > 0
-        ) {
+        if ($result->num_rows > 0) {
 
             $row =
                 $result->fetch_assoc();
@@ -1132,12 +655,14 @@ if ($selected_controller !== "") {
             $selected_customer =
                 $row["customer_name"] ?? "";
 
-
             $selected_active =
-                (int)(
-                    $row["active"] ?? 0
-                );
+                (int)($row["active"] ?? 0);
 
+            /*
+             * IMPORTANT:
+             * NULL last_seen is converted to
+             * "Not yet seen".
+             */
 
             if (
                 isset($row["last_seen"]) &&
@@ -1155,9 +680,12 @@ if ($selected_controller !== "") {
             }
 
 
+            /*
+             * Start and End time may be NULL.
+             */
+
             $selected_start_time =
                 $row["start_time"] ?? "";
-
 
             $selected_end_time =
                 $row["end_time"] ?? "";
@@ -1183,19 +711,12 @@ if (
 ) {
 
     $timestamp =
-        strtotime(
-            $selected_start_time
-        );
+        strtotime($selected_start_time);
 
-    if (
-        $timestamp !== false
-    ) {
+    if ($timestamp !== false) {
 
         $start_input_value =
-            date(
-                "Y-m-d\TH:i",
-                $timestamp
-            );
+            date("Y-m-d\TH:i", $timestamp);
     }
 }
 
@@ -1206,19 +727,12 @@ if (
 ) {
 
     $timestamp =
-        strtotime(
-            $selected_end_time
-        );
+        strtotime($selected_end_time);
 
-    if (
-        $timestamp !== false
-    ) {
+    if ($timestamp !== false) {
 
         $end_input_value =
-            date(
-                "Y-m-d\TH:i",
-                $timestamp
-            );
+            date("Y-m-d\TH:i", $timestamp);
     }
 }
 
@@ -1240,26 +754,22 @@ $pin_values = [
 ];
 
 
-if (
-    $selected_controller !== ""
-) {
+if ($selected_controller !== "") {
 
-    $stmt =
-        $conn->prepare("
-            SELECT
-                D1,
-                D2,
-                D3,
-                D4,
-                D5,
-                D6,
-                D7,
-                D8
-            FROM esp_control
-            WHERE controller_id = ?
-            LIMIT 1
-        ");
-
+    $stmt = $conn->prepare("
+        SELECT
+            D1,
+            D2,
+            D3,
+            D4,
+            D5,
+            D6,
+            D7,
+            D8
+        FROM esp_control
+        WHERE controller_id = ?
+        LIMIT 1
+    ");
 
     if ($stmt) {
 
@@ -1273,14 +783,10 @@ if (
         $result =
             $stmt->get_result();
 
-
-        if (
-            $result->num_rows > 0
-        ) {
+        if ($result->num_rows > 0) {
 
             $row =
                 $result->fetch_assoc();
-
 
             for (
                 $i = 1;
@@ -1291,11 +797,8 @@ if (
                 $pin =
                     "D" . $i;
 
-
                 $pin_values[$pin] =
-                    (int)(
-                        $row[$pin] ?? 0
-                    );
+                    (int)($row[$pin] ?? 0);
             }
         }
 
@@ -1315,9 +818,7 @@ if (
 <meta name="viewport"
       content="width=device-width, initial-scale=1.0">
 
-<title>
-ESP-SWITCH5 REMOTE
-</title>
+<title>ESP-SWITCH5 REMOTE</title>
 
 
 <style>
@@ -1325,7 +826,6 @@ ESP-SWITCH5 REMOTE
 * {
     box-sizing: border-box;
 }
-
 
 body {
 
@@ -1342,7 +842,6 @@ body {
 
     color: #222;
 }
-
 
 .container {
 
@@ -1361,7 +860,6 @@ body {
         rgba(0,0,0,0.15);
 }
 
-
 .header {
 
     position: relative;
@@ -1371,21 +869,17 @@ body {
     margin-bottom: 25px;
 }
 
-
 h1 {
 
-    margin:
-        0 0 5px 0;
+    margin: 0 0 5px 0;
 
     color: #333;
 }
-
 
 .subtitle {
 
     color: #666;
 }
-
 
 .logout {
 
@@ -1407,7 +901,6 @@ h1 {
 
     font-size: 13px;
 }
-
 
 .logout:hover {
 
@@ -1432,7 +925,6 @@ h1 {
     margin-bottom: 20px;
 }
 
-
 .controller-box label {
 
     display: block;
@@ -1441,7 +933,6 @@ h1 {
 
     margin-bottom: 8px;
 }
-
 
 .controller-box select {
 
@@ -1476,7 +967,6 @@ h1 {
     text-align: center;
 }
 
-
 .time-control h2 {
 
     margin-top: 0;
@@ -1486,7 +976,6 @@ h1 {
     color: #333;
 }
 
-
 .timezone {
 
     color: #555;
@@ -1495,7 +984,6 @@ h1 {
 
     margin-bottom: 20px;
 }
-
 
 .time-row {
 
@@ -1512,7 +1000,6 @@ h1 {
     margin-bottom: 15px;
 }
 
-
 .time-box {
 
     background: white;
@@ -1524,7 +1011,6 @@ h1 {
     padding: 15px;
 }
 
-
 .time-box label {
 
     display: block;
@@ -1533,7 +1019,6 @@ h1 {
 
     margin-bottom: 8px;
 }
-
 
 .time-box input {
 
@@ -1547,7 +1032,6 @@ h1 {
 
     font-size: 15px;
 }
-
 
 .save-button {
 
@@ -1569,7 +1053,6 @@ h1 {
 
     cursor: pointer;
 }
-
 
 .save-button:hover {
 
@@ -1594,7 +1077,6 @@ h1 {
     padding: 15px;
 }
 
-
 .current-time-title {
 
     font-size: 14px;
@@ -1604,7 +1086,6 @@ h1 {
     margin-bottom: 5px;
 }
 
-
 .current-time {
 
     font-size: 22px;
@@ -1612,122 +1093,6 @@ h1 {
     font-weight: bold;
 
     color: #155724;
-}
-
-
-/* =========================================================
-   DEVICE TOKEN CONTROL
-========================================================= */
-
-.token-control {
-
-    background: #fff8e1;
-
-    border: 2px solid #e0a800;
-
-    border-radius: 10px;
-
-    padding: 20px;
-
-    margin-bottom: 25px;
-}
-
-
-.token-control h2 {
-
-    margin-top: 0;
-
-    color: #856404;
-
-    text-align: center;
-}
-
-
-.token-warning {
-
-    background: #fff3cd;
-
-    border: 1px solid #ffeeba;
-
-    color: #856404;
-
-    border-radius: 6px;
-
-    padding: 12px;
-
-    margin-bottom: 15px;
-
-    font-size: 14px;
-
-    line-height: 1.5;
-}
-
-
-.token-control label {
-
-    display: block;
-
-    font-weight: bold;
-
-    margin-bottom: 8px;
-}
-
-
-.token-control input {
-
-    width: 100%;
-
-    padding: 12px;
-
-    border: 1px solid #aaa;
-
-    border-radius: 6px;
-
-    font-size: 16px;
-
-    font-family: monospace;
-}
-
-
-.token-button {
-
-    width: 100%;
-
-    margin-top: 12px;
-
-    background: #dc3545;
-
-    color: white;
-
-    border: none;
-
-    border-radius: 6px;
-
-    padding: 12px;
-
-    font-size: 16px;
-
-    font-weight: bold;
-
-    cursor: pointer;
-}
-
-
-.token-button:hover {
-
-    opacity: 0.85;
-}
-
-
-.token-help {
-
-    margin-top: 10px;
-
-    color: #666;
-
-    font-size: 13px;
-
-    line-height: 1.5;
 }
 
 
@@ -1750,7 +1115,6 @@ h1 {
     margin-bottom: 25px;
 }
 
-
 .info-card {
 
     background: #fafafa;
@@ -1764,7 +1128,6 @@ h1 {
     text-align: center;
 }
 
-
 .info-title {
 
     font-size: 13px;
@@ -1773,7 +1136,6 @@ h1 {
 
     margin-bottom: 5px;
 }
-
 
 .info-value {
 
@@ -1800,7 +1162,6 @@ h1 {
     gap: 15px;
 }
 
-
 .pin-card {
 
     border: 1px solid #ccc;
@@ -1814,7 +1175,6 @@ h1 {
     background: #fafafa;
 }
 
-
 .pin-name {
 
     font-size: 20px;
@@ -1823,7 +1183,6 @@ h1 {
 
     margin-bottom: 10px;
 }
-
 
 .state {
 
@@ -1834,18 +1193,15 @@ h1 {
     margin-bottom: 12px;
 }
 
-
 .state-on {
 
     color: green;
 }
 
-
 .state-off {
 
     color: red;
 }
-
 
 .pin-form {
 
@@ -1853,7 +1209,6 @@ h1 {
 
     margin: 0;
 }
-
 
 button {
 
@@ -1870,7 +1225,6 @@ button {
     cursor: pointer;
 }
 
-
 .on-btn {
 
     background: #28a745;
@@ -1878,14 +1232,12 @@ button {
     color: white;
 }
 
-
 .off-btn {
 
     background: #dc3545;
 
     color: white;
 }
-
 
 button:hover {
 
@@ -1910,14 +1262,12 @@ button:hover {
     font-weight: bold;
 }
 
-
 .success {
 
     color: #155724;
 
     background: #d4edda;
 }
-
 
 .error {
 
@@ -1961,7 +1311,6 @@ button:hover {
         grid-template-columns:
             1fr;
     }
-
 }
 
 </style>
@@ -2005,7 +1354,6 @@ Logout
 Select Controller
 </label>
 
-
 <select
     id="controller"
     onchange="selectController(this.value)"
@@ -2015,12 +1363,9 @@ Select Controller
 -- Select Controller --
 </option>
 
-
 <?php
 
-foreach (
-    $controllers as $controller
-) {
+foreach ($controllers as $controller) {
 
 ?>
 
@@ -2053,11 +1398,8 @@ echo htmlspecialchars(
     "UTF-8"
 );
 
-
 if (
-    !empty(
-        $controller["customer_name"]
-    )
+    !empty($controller["customer_name"])
 ) {
 
     echo " - ";
@@ -2086,19 +1428,16 @@ if (
 
 <?php
 
-if (
-    $message !== ""
-) {
+if ($message !== "") {
 
 ?>
 
 <div
     class="message
     <?php
-        echo
-            $message_type === "success"
-                ? "success"
-                : "error";
+        echo $message_type === "success"
+            ? "success"
+            : "error";
     ?>"
 >
 
@@ -2119,9 +1458,7 @@ echo htmlspecialchars(
 }
 
 
-if (
-    $selected_controller !== ""
-) {
+if ($selected_controller !== "") {
 
 ?>
 
@@ -2135,7 +1472,6 @@ if (
 <h2>
 Calendar Time Control
 </h2>
-
 
 <div class="timezone">
 Calendar: Asia/Kolkata (India Standard Time)
@@ -2153,18 +1489,6 @@ Calendar: Asia/Kolkata (India Standard Time)
 
 <input
     type="hidden"
-    name="csrf_token"
-    value="<?php
-        echo htmlspecialchars(
-            $csrf_token,
-            ENT_QUOTES,
-            "UTF-8"
-        );
-    ?>"
->
-
-<input
-    type="hidden"
     name="controller_id"
     value="<?php
         echo htmlspecialchars(
@@ -2175,11 +1499,9 @@ Calendar: Asia/Kolkata (India Standard Time)
     ?>"
 >
 
-
 <label for="start_time">
 START TIME
 </label>
-
 
 <input
     type="datetime-local"
@@ -2194,7 +1516,6 @@ START TIME
     ?>"
     required
 >
-
 
 <button
     type="submit"
@@ -2217,18 +1538,6 @@ SAVE START
 
 <input
     type="hidden"
-    name="csrf_token"
-    value="<?php
-        echo htmlspecialchars(
-            $csrf_token,
-            ENT_QUOTES,
-            "UTF-8"
-        );
-    ?>"
->
-
-<input
-    type="hidden"
     name="controller_id"
     value="<?php
         echo htmlspecialchars(
@@ -2239,11 +1548,9 @@ SAVE START
     ?>"
 >
 
-
 <label for="end_time">
 END TIME
 </label>
-
 
 <input
     type="datetime-local"
@@ -2258,7 +1565,6 @@ END TIME
     ?>"
     required
 >
-
 
 <button
     type="submit"
@@ -2285,7 +1591,6 @@ SAVE END
 CURRENT TIME
 </div>
 
-
 <div
     class="current-time"
     id="currentTime"
@@ -2294,136 +1599,6 @@ Loading current time...
 </div>
 
 </div>
-
-</div>
-
-
-<!-- ======================================================
-     DEVICE TOKEN CONTROL
-======================================================= -->
-
-<div class="token-control">
-
-<h2>
-Device Token Control
-</h2>
-
-
-<div class="token-warning">
-
-<strong>WARNING:</strong><br>
-
-Changing the device token will immediately make the
-controller's old token invalid.
-
-The ESP8266 currently using the old token will no longer
-be authorized to communicate with this server.
-
-Use this facility when you want to deactivate a customer
-without changing the controller ID.
-
-</div>
-
-
-<form
-    method="post"
-    onsubmit="
-        return confirm(
-            'WARNING!\\n\\n' +
-            'Changing the device token will immediately ' +
-            'invalidate the OLD token.\\n\\n' +
-            'The ESP8266 using the old token will stop ' +
-            'communicating with the server.\\n\\n' +
-            'Do you want to continue?'
-        );
-    "
->
-
-
-<input
-    type="hidden"
-    name="csrf_token"
-    value="<?php
-        echo htmlspecialchars(
-            $csrf_token,
-            ENT_QUOTES,
-            "UTF-8"
-        );
-    ?>"
->
-
-
-<input
-    type="hidden"
-    name="controller_id"
-    value="<?php
-        echo htmlspecialchars(
-            $selected_controller,
-            ENT_QUOTES,
-            "UTF-8"
-        );
-    ?>"
->
-
-
-<label for="new_device_token">
-NEW DEVICE TOKEN
-</label>
-
-
-<input
-    type="text"
-    id="new_device_token"
-    name="new_device_token"
-    placeholder="Enter new device token"
-    minlength="8"
-    maxlength="128"
-    pattern="[A-Za-z0-9._-]{8,128}"
-    autocomplete="off"
-    spellcheck="false"
-    required
->
-
-
-<button
-    type="submit"
-    name="change_token"
-    class="token-button"
->
-CHANGE DEVICE TOKEN
-</button>
-
-
-<div class="token-help">
-
-Allowed characters:
-<strong>
-A-Z, a-z, 0-9, - _ .
-</strong>
-
-<br>
-
-Length:
-<strong>
-8 to 128 characters
-</strong>
-
-<br><br>
-
-Example:
-
-<code>
-ESP0001-TOKEN-2026-A7K9X3
-</code>
-
-<br><br>
-
-The existing token is deliberately not displayed.
-
-</div>
-
-
-</form>
 
 </div>
 
@@ -2440,7 +1615,6 @@ The existing token is deliberately not displayed.
 <div class="info-title">
 Controller ID
 </div>
-
 
 <div class="info-value">
 
@@ -2465,7 +1639,6 @@ echo htmlspecialchars(
 Customer
 </div>
 
-
 <div class="info-value">
 
 <?php
@@ -2489,7 +1662,6 @@ echo htmlspecialchars(
 Active
 </div>
 
-
 <div
     class="info-value"
     id="activeStatus"
@@ -2497,10 +1669,9 @@ Active
 
 <?php
 
-echo
-    $selected_active
-        ? "YES"
-        : "NO";
+echo $selected_active
+    ? "YES"
+    : "NO";
 
 ?>
 
@@ -2514,7 +1685,6 @@ echo
 <div class="info-title">
 Last Seen
 </div>
-
 
 <div
     class="info-value"
@@ -2557,14 +1727,12 @@ for (
     $pin =
         "D" . $i;
 
-
     $value =
         $pin_values[$pin];
 
 ?>
 
 <div class="pin-card">
-
 
 <div class="pin-name">
 
@@ -2580,47 +1748,27 @@ echo $pin;
 <div
     class="state
     <?php
-
-        echo
-            $value
-                ? "state-on"
-                : "state-off";
-
+        echo $value
+            ? "state-on"
+            : "state-off";
     ?>"
 >
 
 <?php
 
-echo
-    $value
-        ? "ON"
-        : "OFF";
+echo $value
+    ? "ON"
+    : "OFF";
 
 ?>
 
 </div>
 
 
-<!-- ON -->
-
 <form
     method="post"
     class="pin-form"
 >
-
-
-<input
-    type="hidden"
-    name="csrf_token"
-    value="<?php
-        echo htmlspecialchars(
-            $csrf_token,
-            ENT_QUOTES,
-            "UTF-8"
-        );
-    ?>"
->
-
 
 <input
     type="hidden"
@@ -2634,7 +1782,6 @@ echo
     ?>"
 >
 
-
 <input
     type="hidden"
     name="pin"
@@ -2643,13 +1790,11 @@ echo
     ?>"
 >
 
-
 <input
     type="hidden"
     name="value"
     value="1"
 >
-
 
 <button
     type="submit"
@@ -2659,30 +1804,13 @@ echo
 ON
 </button>
 
-
 </form>
 
-
-<!-- OFF -->
 
 <form
     method="post"
     class="pin-form"
 >
-
-
-<input
-    type="hidden"
-    name="csrf_token"
-    value="<?php
-        echo htmlspecialchars(
-            $csrf_token,
-            ENT_QUOTES,
-            "UTF-8"
-        );
-    ?>"
->
-
 
 <input
     type="hidden"
@@ -2696,7 +1824,6 @@ ON
     ?>"
 >
 
-
 <input
     type="hidden"
     name="pin"
@@ -2705,13 +1832,11 @@ ON
     ?>"
 >
 
-
 <input
     type="hidden"
     name="value"
     value="0"
 >
-
 
 <button
     type="submit"
@@ -2720,7 +1845,6 @@ ON
 >
 OFF
 </button>
-
 
 </form>
 
@@ -2744,9 +1868,7 @@ else {
 ?>
 
 <div class="message error">
-
 Please select a controller.
-
 </div>
 
 <?php
@@ -2768,9 +1890,7 @@ Please select a controller.
 function selectController(id)
 {
 
-    if (
-        id === ""
-    )
+    if (id === "")
     {
 
         window.location.href =
@@ -2778,7 +1898,6 @@ function selectController(id)
 
         return;
     }
-
 
     window.location.href =
         "index.php?controller_id=" +
@@ -2796,7 +1915,6 @@ function updateCurrentTime()
 
     const now =
         new Date();
-
 
     const options = {
 
@@ -2825,7 +1943,6 @@ function updateCurrentTime()
             false
     };
 
-
     const parts =
         new Intl.DateTimeFormat(
             "en-GB",
@@ -2835,16 +1952,11 @@ function updateCurrentTime()
 
     let data = {};
 
-
     parts.forEach(
         function(part)
         {
-
-            if (
-                part.type !== "literal"
-            )
+            if (part.type !== "literal")
             {
-
                 data[part.type] =
                     part.value;
             }
@@ -2872,9 +1984,7 @@ function updateCurrentTime()
         );
 
 
-    if (
-        currentTime
-    )
+    if (currentTime)
     {
 
         currentTime.textContent =
@@ -2884,12 +1994,12 @@ function updateCurrentTime()
 }
 
 
-/* =========================================================
-   START CURRENT TIME
-========================================================= */
+/* Start immediately */
 
 updateCurrentTime();
 
+
+/* Update every second */
 
 setInterval(
     updateCurrentTime,
@@ -2907,9 +2017,8 @@ setInterval(
 
         <?php
 
-        if (
-            $selected_controller !== ""
-        ) {
+        if ($selected_controller !== "")
+        {
 
         ?>
 
