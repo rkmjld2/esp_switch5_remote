@@ -610,7 +610,11 @@ $selected_customer = "";
 
 $selected_active = 0;
 
-$selected_last_seen = "";
+/*
+ * Use NULL initially because the database may contain
+ * NULL for a newly created controller.
+ */
+$selected_last_seen = null;
 
 
 if (
@@ -656,8 +660,11 @@ if (
                 $result->fetch_assoc();
 
 
+            /*
+             * NULL is allowed here.
+             */
             $selected_customer =
-                $row["customer_name"];
+                $row["customer_name"] ?? "";
 
             $selected_active =
                 (int)$row["active"];
@@ -1385,9 +1392,29 @@ Last Seen
 
 <?php
 
-echo htmlspecialchars(
-    $selected_last_seen
-);
+/*
+ * FIX:
+ * last_seen may be NULL for a newly created controller.
+ *
+ * Do not pass NULL to htmlspecialchars().
+ */
+
+if (
+    !empty($selected_last_seen)
+)
+{
+
+    echo htmlspecialchars(
+        $selected_last_seen
+    );
+
+}
+else
+{
+
+    echo "Not yet seen";
+
+}
 
 ?>
 
