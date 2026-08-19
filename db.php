@@ -1,49 +1,61 @@
 <?php
+/*
+ * =========================================================
+ * db.php
+ * ESP-SWITCH5 REMOTE
+ *
+ * Database: esp_switch5
+ * TiDB Cloud
+ * =========================================================
+ *
+ * Render Environment Variables:
+ *
+ * DB_HOST
+ * DB_USER
+ * DB_PASSWORD
+ * DB_NAME = esp_switch5
+ * DB_PORT = 4000
+ *
+ * Keep the database password in Render Environment
+ * Variables. Do not put it in GitHub.
+ * =========================================================
+ */
 
-mysqli_report(
-    MYSQLI_REPORT_ERROR |
-    MYSQLI_REPORT_STRICT
-);
+mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
 
-$db_host =
-    getenv("DB_HOST");
+$host = getenv("DB_HOST");
+$user = getenv("DB_USER");
+$password = getenv("DB_PASSWORD");
+$database = getenv("DB_NAME");
+$port = getenv("DB_PORT");
 
-$db_user =
-    getenv("DB_USER");
-
-$db_password =
-    getenv("DB_PASSWORD");
-
-$db_name =
-    getenv("DB_NAME");
-
-$db_port =
-    getenv("DB_PORT");
-
-
-if (!$db_port) {
-    $db_port = 4000;
+if (!$port) {
+    $port = 4000;
 }
 
+/* ---------------------------------------------------------
+   CHECK REQUIRED ENVIRONMENT VARIABLES
+--------------------------------------------------------- */
 
-if (
-    !$db_host ||
-    !$db_user ||
-    !$db_password ||
-    !$db_name
-) {
+if (!$host || !$user || !$password || !$database) {
+
     die(
-        "Database environment variables are missing."
+        "Database environment variables are missing. " .
+        "Please check DB_HOST, DB_USER, DB_PASSWORD and DB_NAME."
     );
 }
 
+/* ---------------------------------------------------------
+   CONNECT TO TiDB CLOUD
+--------------------------------------------------------- */
 
 try {
 
-    $conn =
-        mysqli_init();
+    $conn = mysqli_init();
 
-
+    /*
+     * TiDB Cloud requires SSL/TLS.
+     */
     mysqli_ssl_set(
         $conn,
         NULL,
@@ -53,42 +65,25 @@ try {
         NULL
     );
 
-
-    $connected =
-        mysqli_real_connect(
-            $conn,
-            $db_host,
-            $db_user,
-            $db_password,
-            $db_name,
-            (int)$db_port,
-            NULL,
-            MYSQLI_CLIENT_SSL
-        );
-
-
-    if (!$connected) {
-
-        die(
-            "Database connection failed."
-        );
-    }
-
-
-    $conn->set_charset(
-        "utf8mb4"
+    mysqli_real_connect(
+        $conn,
+        $host,
+        $user,
+        $password,
+        $database,
+        (int)$port,
+        NULL,
+        MYSQLI_CLIENT_SSL
     );
 
+    $conn->set_charset("utf8mb4");
+
 }
-catch (
-    mysqli_sql_exception $e
-) {
+catch (mysqli_sql_exception $e) {
 
     die(
         "Database connection failed: " .
-        htmlspecialchars(
-            $e->getMessage()
-        )
+        htmlspecialchars($e->getMessage())
     );
 }
 
