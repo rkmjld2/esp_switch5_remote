@@ -1,16 +1,31 @@
 /*
-  ESP_SWITCH5_REMOTE - ESP8266 Controller
+  ============================================================
+  ESP-SWITCH5 REMOTE - ESP8266 CONTROLLER
+  ============================================================
 
-  Remote version:
-      Render.com + TiDB Cloud
+  Remote server:
+      esp-switch5-remote.onrender.com
 
-  Automatic startup and Wi-Fi recovery.
-  No manual RESET is required during normal operation.
+  Calendar Time Control:
+      Controlled by remote api.php
 
-  Each physical controller is identified by:
+  Timezone:
+      Asia/Kolkata (IST)
+
+  Controller identity:
       CONTROLLER_ID + DEVICE_TOKEN
 
-  Change these values for each controller.
+  IMPORTANT:
+      The ESP8266 does NOT calculate START/END time.
+
+      The remote server is the authority for:
+          NOT_STARTED
+          ACTIVE
+          EXPIRED
+
+      The server also returns D1-D8.
+
+  ============================================================
 */
 
 #include <ESP8266WiFi.h>
@@ -19,52 +34,68 @@
 #include <UrlEncode.h>
 
 
-/* ================= WIFI ================= */
+/* ============================================================
+   WIFI
+   ============================================================ */
 
-const char* WIFI_SSID = "Airtel_56";
-const char* WIFI_PASSWORD = "Raviuma5658";
+const char* WIFI_SSID =
+    "Airtel_56";
+
+const char* WIFI_PASSWORD =
+    "Raviuma5658";
 
 
-/* ============ CONTROLLER IDENTITY ============ */
+/* ============================================================
+   CONTROLLER IDENTITY
+   ============================================================ */
 
-const char* CONTROLLER_ID = "ESP0001";
+const char* CONTROLLER_ID =
+    "ESP0001";
 
 const char* DEVICE_TOKEN =
     "ESP0001-TOKEN-2026-A7K9X2";
 
 
-/* ================= REMOTE SERVER ================= */
-
-/*
-   New ESP-SWITCH5 REMOTE server.
-
-   IMPORTANT:
-   Use the exact Render URL assigned to your service.
-*/
+/* ============================================================
+   REMOTE SERVER
+   ============================================================ */
 
 const char* serverURL =
     "https://esp-switch5-remote.onrender.com/api.php";
 
 
-/* ================= PINS D1-D8 ================= */
+/* ============================================================
+   ESP8266 PINS D1-D8
+   ============================================================ */
 
 const uint8_t pins[8] = {
-  D1, D2, D3, D4,
-  D5, D6, D7, D8
+
+  D1,
+  D2,
+  D3,
+  D4,
+  D5,
+  D6,
+  D7,
+  D8
+
 };
 
 
-/* ================= TIMING ================= */
+/* ============================================================
+   TIMING
+   ============================================================ */
 
-const unsigned long POLL_INTERVAL = 3000UL;
+const unsigned long POLL_INTERVAL =
+    3000UL;
 
-const unsigned long WIFI_RETRY_INTERVAL = 5000UL;
-
+const unsigned long WIFI_RETRY_INTERVAL =
+    5000UL;
 
 /*
-   Restart only after prolonged Wi-Fi failure.
+   Restart ESP8266 only if Wi-Fi remains unavailable
+   for 2 minutes.
 */
-
 const unsigned long MAX_WIFI_FAILURE_TIME =
     120000UL;
 
@@ -83,22 +114,14 @@ unsigned long wifiFailureStarted = 0;
 void startWiFi()
 {
   Serial.println();
-
-  Serial.print(
-    "Connecting to WiFi: "
-  );
-
-  Serial.println(
-    WIFI_SSID
-  );
-
+  Serial.print("Connecting to WiFi: ");
+  Serial.println(WIFI_SSID);
 
   WiFi.mode(WIFI_STA);
 
   WiFi.setAutoReconnect(true);
 
   WiFi.persistent(false);
-
 
   WiFi.begin(
     WIFI_SSID,
@@ -117,6 +140,7 @@ void maintainWiFi()
   {
     if (wifiFailureStarted != 0)
     {
+      Serial.println();
       Serial.println(
         "WiFi connection restored."
       );
@@ -137,7 +161,6 @@ void maintainWiFi()
     wifiFailureStarted = now;
 
     Serial.println();
-
     Serial.println(
       "WiFi disconnected."
     );
@@ -149,8 +172,8 @@ void maintainWiFi()
 
 
   if (
-    now - lastWiFiAttempt >=
-    WIFI_RETRY_INTERVAL
+    now - lastWiFiAttempt
+    >= WIFI_RETRY_INTERVAL
   )
   {
     lastWiFiAttempt = now;
@@ -158,7 +181,6 @@ void maintainWiFi()
     Serial.println(
       "Retrying WiFi..."
     );
-
 
     WiFi.disconnect();
 
@@ -170,13 +192,13 @@ void maintainWiFi()
 
 
   /*
-     If Wi-Fi remains unavailable for 2 minutes,
-     restart the ESP8266 automatically.
+     Restart ESP8266 after prolonged
+     Wi-Fi failure.
   */
 
   if (
-    now - wifiFailureStarted >=
-    MAX_WIFI_FAILURE_TIME
+    now - wifiFailureStarted
+    >= MAX_WIFI_FAILURE_TIME
   )
   {
     Serial.println();
@@ -189,11 +211,30 @@ void maintainWiFi()
       "Automatically restarting ESP8266..."
     );
 
-
     delay(1000);
 
     ESP.restart();
   }
+}
+
+
+/* ============================================================
+   TURN ALL OUTPUTS OFF
+   ============================================================ */
+
+void turnAllOutputsOff()
+{
+  for (int i = 0; i < 8; i++)
+  {
+    digitalWrite(
+      pins[i],
+      LOW
+    );
+  }
+
+  Serial.println(
+    "All outputs OFF."
+  );
 }
 
 
@@ -204,29 +245,30 @@ void maintainWiFi()
 void getControllerData()
 {
   if (
-    WiFi.status() !=
-    WL_CONNECTED
+    WiFi.status() != WL_CONNECTED
   )
   {
     Serial.println(
-      "Server request skipped: WiFi not connected."
+      "Server request skipped: "
+      "WiFi not connected."
     );
 
     return;
   }
 
 
-  std::unique_ptr<BearSSL::WiFiClientSecure> client(
+  /*
+     HTTPS client.
+     Certificate verification is disabled,
+     same as the previous working version.
+  */
+
+  std::unique_ptr<
+      BearSSL::WiFiClientSecure
+  > client(
       new BearSSL::WiFiClientSecure
   );
 
-
-  /*
-     HTTPS connection.
-
-     Certificate verification is disabled in this version,
-     exactly as in the working ESP-SWITCH5 program.
-  */
 
   client->setInsecure();
 
@@ -234,9 +276,9 @@ void getControllerData()
   HTTPClient https;
 
 
-  /* ----------------------------------------------------------
-     BUILD API URL
-     ---------------------------------------------------------- */
+  /* ========================================================
+     BUILD URL
+     ======================================================== */
 
   String url =
       String(serverURL);
@@ -244,41 +286,34 @@ void getControllerData()
 
   url += "?action=get";
 
+  url += "&controller_id=";
 
-  url +=
-      "&controller_id=";
+  url += urlEncode(
+      CONTROLLER_ID
+  );
 
+  url += "&device_token=";
 
-  url +=
-      urlEncode(
-        CONTROLLER_ID
-      );
-
-
-  url +=
-      "&device_token=";
-
-
-  url +=
-      urlEncode(
-        DEVICE_TOKEN
-      );
+  url += urlEncode(
+      DEVICE_TOKEN
+  );
 
 
   Serial.println();
+  Serial.println(
+    "=========================================="
+  );
 
   Serial.println(
     "Requesting remote server..."
   );
 
-  Serial.println(
-    url
-  );
+  Serial.println(url);
 
 
-  /* ----------------------------------------------------------
+  /* ========================================================
      START HTTPS
-     ---------------------------------------------------------- */
+     ======================================================== */
 
   if (
     !https.begin(
@@ -295,14 +330,8 @@ void getControllerData()
   }
 
 
-  https.setTimeout(
-    15000
-  );
+  https.setTimeout(15000);
 
-
-  /* ----------------------------------------------------------
-     SEND GET REQUEST
-     ---------------------------------------------------------- */
 
   int httpCode =
       https.GET();
@@ -317,9 +346,9 @@ void getControllerData()
   );
 
 
-  /* ----------------------------------------------------------
-     PROCESS RESPONSE
-     ---------------------------------------------------------- */
+  /* ========================================================
+     SERVER RESPONSE
+     ======================================================== */
 
   if (httpCode > 0)
   {
@@ -336,25 +365,229 @@ void getControllerData()
     );
 
 
-    /* --------------------------------------------------------
+    /* ======================================================
        HTTP 200
-       -------------------------------------------------------- */
+       ====================================================== */
 
     if (
-      httpCode ==
-      HTTP_CODE_OK
+      httpCode == HTTP_CODE_OK
     )
     {
 
+      /* ====================================================
+         READ CALENDAR STATUS
+         ==================================================== */
+
+      bool calendarAllowed =
+          false;
+
+
+      /*
+         Look for:
+
+         "calendar_allowed":true
+
+         or
+
+         "calendar_allowed":false
+      */
+
+      if (
+        response.indexOf(
+          "\"calendar_allowed\":true"
+        ) >= 0
+      )
+      {
+        calendarAllowed = true;
+      }
+
+
+      /* ====================================================
+         READ CALENDAR STATUS TEXT
+         ==================================================== */
+
+      String calendarStatus =
+          "UNKNOWN";
+
+
+      int statusPos =
+          response.indexOf(
+            "\"calendar_status\":\""
+          );
+
+
+      if (statusPos >= 0)
+      {
+        statusPos +=
+            strlen(
+              "\"calendar_status\":\""
+            );
+
+
+        int statusEnd =
+            response.indexOf(
+              "\"",
+              statusPos
+            );
+
+
+        if (statusEnd > statusPos)
+        {
+          calendarStatus =
+              response.substring(
+                statusPos,
+                statusEnd
+              );
+        }
+      }
+
+
+      /* ====================================================
+         DISPLAY CALENDAR STATUS
+         ==================================================== */
+
+      Serial.println();
+
+      Serial.print(
+        "Calendar Allowed: "
+      );
+
+      Serial.println(
+        calendarAllowed
+          ? "YES"
+          : "NO"
+      );
+
+
+      Serial.print(
+        "Calendar Status: "
+      );
+
+      Serial.println(
+        calendarStatus
+      );
+
+
+      /* ====================================================
+         DISPLAY SERVER CURRENT TIME
+         ==================================================== */
+
+      int timePos =
+          response.indexOf(
+            "\"current_time\":\""
+          );
+
+
+      if (timePos >= 0)
+      {
+        timePos +=
+            strlen(
+              "\"current_time\":\""
+            );
+
+
+        int timeEnd =
+            response.indexOf(
+              "\"",
+              timePos
+            );
+
+
+        if (timeEnd > timePos)
+        {
+          String currentTime =
+              response.substring(
+                timePos,
+                timeEnd
+              );
+
+
+          Serial.print(
+            "Server IST Time: "
+          );
+
+          Serial.println(
+            currentTime
+          );
+        }
+      }
+
+
+      /* ====================================================
+         CALENDAR NOT ACTIVE
+         ==================================================== */
+
+      if (!calendarAllowed)
+      {
+        Serial.println();
+
+        Serial.println(
+          "Calendar period is NOT ACTIVE."
+        );
+
+
+        if (
+          calendarStatus ==
+          "NOT_STARTED"
+        )
+        {
+          Serial.println(
+            "Controller has not reached START TIME."
+          );
+        }
+        else if (
+          calendarStatus ==
+          "EXPIRED"
+        )
+        {
+          Serial.println(
+            "Controller has passed END TIME."
+          );
+        }
+        else if (
+          calendarStatus ==
+          "INVALID_SCHEDULE"
+        )
+        {
+          Serial.println(
+            "Invalid calendar schedule."
+          );
+        }
+
+
+        /*
+           Safety action:
+           all outputs OFF.
+        */
+
+        turnAllOutputsOff();
+
+
+        https.end();
+
+        return;
+      }
+
+
+      /* ====================================================
+         CALENDAR ACTIVE
+         ==================================================== */
+
+      Serial.println();
+
+      Serial.println(
+        "Calendar period ACTIVE."
+      );
+
+
+      /* ====================================================
+         READ D1-D8
+         ==================================================== */
+
       int values[8];
 
-      bool allFound =
-          true;
+      bool allFound = true;
 
-
-      /* ------------------------------------------------------
-         READ D1-D8 FROM JSON
-         ------------------------------------------------------ */
 
       for (
         int i = 0;
@@ -387,6 +620,10 @@ void getControllerData()
             key.length();
 
 
+        /*
+           Skip spaces.
+        */
+
         while (
           pos <
             (int)response.length() &&
@@ -397,11 +634,17 @@ void getControllerData()
         }
 
 
+        /*
+           Value must be 0 or 1.
+        */
+
         if (
           pos >=
-            (int)response.length() ||
+            (int)response.length()
+          ||
           (
-            response[pos] != '0' &&
+            response[pos] != '0'
+            &&
             response[pos] != '1'
           )
         )
@@ -417,12 +660,14 @@ void getControllerData()
       }
 
 
-      /* ------------------------------------------------------
-         UPDATE PHYSICAL OUTPUTS
-         ------------------------------------------------------ */
+      /* ====================================================
+         UPDATE OUTPUTS
+         ==================================================== */
 
       if (allFound)
       {
+
+        Serial.println();
 
         Serial.println(
           "Pin status updated:"
@@ -464,18 +709,33 @@ void getControllerData()
       else
       {
 
+        Serial.println();
+
         Serial.println(
-          "ERROR: Could not read all D1-D8 values."
+          "ERROR: Could not read "
+          "all D1-D8 values."
         );
       }
+
     }
     else
     {
 
+      Serial.println();
+
       Serial.println(
         "Server returned an HTTP error."
       );
+
+      /*
+         Safety:
+         If server returns an HTTP error,
+         turn outputs OFF.
+      */
+
+      turnAllOutputsOff();
     }
+
   }
   else
   {
@@ -489,6 +749,13 @@ void getControllerData()
         httpCode
       )
     );
+
+    /*
+       Safety:
+       If communication fails, turn outputs OFF.
+    */
+
+    turnAllOutputsOff();
   }
 
 
@@ -505,7 +772,6 @@ void setup()
   Serial.begin(
     115200
   );
-
 
   delay(300);
 
@@ -543,18 +809,9 @@ void setup()
   );
 
 
-  Serial.print(
-    "Server: "
-  );
-
-  Serial.println(
-    serverURL
-  );
-
-
-  /* ----------------------------------------------------------
+  /* ========================================================
      CONFIGURE D1-D8
-     ---------------------------------------------------------- */
+     ======================================================== */
 
   for (
     int i = 0;
@@ -562,15 +819,13 @@ void setup()
     i++
   )
   {
-
     pinMode(
       pins[i],
       OUTPUT
     );
 
-
     /*
-       Start all outputs OFF.
+       Start safely OFF.
     */
 
     digitalWrite(
@@ -580,14 +835,14 @@ void setup()
   }
 
 
-  /*
-     Start Wi-Fi automatically.
-
-     No button or manual RESET is required.
-  */
+  /* ========================================================
+     START WIFI
+     ======================================================== */
 
   startWiFi();
 
+
+  Serial.println();
 
   Serial.println(
     "Startup complete."
@@ -601,9 +856,9 @@ void setup()
 
 void loop()
 {
-  /* ----------------------------------------------------------
-     MAINTAIN WIFI
-     ---------------------------------------------------------- */
+  /* --------------------------------------------------------
+     Maintain Wi-Fi automatically
+     -------------------------------------------------------- */
 
   maintainWiFi();
 
@@ -612,21 +867,19 @@ void loop()
       millis();
 
 
-  /* ----------------------------------------------------------
-     POLL REMOTE SERVER EVERY 3 SECONDS
-     ---------------------------------------------------------- */
+  /* --------------------------------------------------------
+     Poll remote server every 3 seconds
+     -------------------------------------------------------- */
 
   if (
-    WiFi.status() ==
-      WL_CONNECTED &&
+    WiFi.status() == WL_CONNECTED
+    &&
     now - lastPoll >=
       POLL_INTERVAL
   )
   {
 
-    lastPoll =
-        now;
-
+    lastPoll = now;
 
     getControllerData();
   }
