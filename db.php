@@ -1,32 +1,95 @@
 <?php
 
-echo "<pre>";
+mysqli_report(
+    MYSQLI_REPORT_ERROR |
+    MYSQLI_REPORT_STRICT
+);
 
-echo "DB_HOST: ";
-echo getenv("DB_HOST") ? "RECEIVED" : "MISSING";
-echo "\n";
+$db_host =
+    getenv("DB_HOST");
 
-echo "DB_USER: ";
-echo getenv("DB_USER") ? "RECEIVED" : "MISSING";
-echo "\n";
+$db_user =
+    getenv("DB_USER");
 
-echo "DB_PASSWORD: ";
-echo getenv("DB_PASSWORD") ? "RECEIVED" : "MISSING";
-echo "\n";
+$db_password =
+    getenv("DB_PASSWORD");
 
-echo "DB_NAME: ";
-echo getenv("DB_NAME") ? "RECEIVED" : "MISSING";
-echo "\n";
+$db_name =
+    getenv("DB_NAME");
 
-echo "DB_PORT: ";
-echo getenv("DB_PORT") ? "RECEIVED" : "MISSING";
-echo "\n";
+$db_port =
+    getenv("DB_PORT");
 
-echo "ADMIN_PASSWORD: ";
-echo getenv("ADMIN_PASSWORD") ? "RECEIVED" : "MISSING";
-echo "\n";
 
-echo "</pre>";
+if (!$db_port) {
+    $db_port = 4000;
+}
 
-exit;
+
+if (
+    !$db_host ||
+    !$db_user ||
+    !$db_password ||
+    !$db_name
+) {
+    die(
+        "Database environment variables are missing."
+    );
+}
+
+
+try {
+
+    $conn =
+        mysqli_init();
+
+
+    mysqli_ssl_set(
+        $conn,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL
+    );
+
+
+    $connected =
+        mysqli_real_connect(
+            $conn,
+            $db_host,
+            $db_user,
+            $db_password,
+            $db_name,
+            (int)$db_port,
+            NULL,
+            MYSQLI_CLIENT_SSL
+        );
+
+
+    if (!$connected) {
+
+        die(
+            "Database connection failed."
+        );
+    }
+
+
+    $conn->set_charset(
+        "utf8mb4"
+    );
+
+}
+catch (
+    mysqli_sql_exception $e
+) {
+
+    die(
+        "Database connection failed: " .
+        htmlspecialchars(
+            $e->getMessage()
+        )
+    );
+}
+
 ?>
