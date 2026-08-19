@@ -2,76 +2,90 @@
 /*
 ============================================================
  ESP-SWITCH5 REMOTE - api.php
- REMOTE VERSION
 ============================================================
 
-Server:
-    esp_switch5_remote.onrender.com
+Remote server:
+    Render.com
 
 Database:
     TiDB Cloud
 
+Timezone:
+    Asia/Kolkata (IST)
+
 Tables:
-
     controllers
-        id
-        controller_id
-        device_token
-        customer_name
-        active
-        last_seen
-
     esp_control
-        id
-        controller_id
-        D1
-        D2
-        D3
-        D4
-        D5
-        D6
-        D7
-        D8
+
+controllers:
+    id
+    controller_id
+    device_token
+    customer_name
+    active
+    last_seen
+    start_time
+    end_time
+
+esp_control:
+    id
+    controller_id
+    D1
+    D2
+    D3
+    D4
+    D5
+    D6
+    D7
+    D8
 
 ============================================================
 */
 
 
 /* =========================================================
-   DATABASE CONNECTION
-   ========================================================= */
+   DATABASE
+========================================================= */
 
 require_once __DIR__ . "/db.php";
 
 
 /* =========================================================
-   JSON RESPONSE
-   ========================================================= */
+   TIMEZONE
+========================================================= */
 
-header("Content-Type: application/json; charset=UTF-8");
+date_default_timezone_set("Asia/Kolkata");
+
+
+/* =========================================================
+   JSON HEADER
+========================================================= */
+
+header(
+    "Content-Type: application/json; charset=UTF-8"
+);
 
 
 /* =========================================================
    GET PARAMETERS
-   ========================================================= */
+========================================================= */
 
-$action = trim($_GET["action"] ?? "");
+$action =
+    trim($_GET["action"] ?? "");
 
-$controller_id = trim(
-    $_GET["controller_id"] ?? ""
-);
+$controller_id =
+    trim($_GET["controller_id"] ?? "");
 
-$device_token = trim(
-    $_GET["device_token"] ?? ""
-);
+$device_token =
+    trim($_GET["device_token"] ?? "");
 
 
 /* =========================================================
    VALIDATE CONTROLLER ID
-   ========================================================= */
+========================================================= */
 
-if ($controller_id === "") {
-
+if ($controller_id === "")
+{
     echo json_encode([
         "status" => "error",
         "message" => "controller_id missing"
@@ -83,10 +97,10 @@ if ($controller_id === "") {
 
 /* =========================================================
    VALIDATE DEVICE TOKEN
-   ========================================================= */
+========================================================= */
 
-if ($device_token === "") {
-
+if ($device_token === "")
+{
     echo json_encode([
         "status" => "error",
         "message" => "device_token missing"
@@ -97,8 +111,8 @@ if ($device_token === "") {
 
 
 /* =========================================================
-   VERIFY CONTROLLER ID + DEVICE TOKEN
-   ========================================================= */
+   FIND CONTROLLER
+========================================================= */
 
 $stmt = $conn->prepare("
     SELECT
@@ -106,7 +120,10 @@ $stmt = $conn->prepare("
         controller_id,
         device_token,
         customer_name,
-        active
+        active,
+        last_seen,
+        start_time,
+        end_time
     FROM controllers
     WHERE controller_id = ?
       AND device_token = ?
@@ -114,8 +131,8 @@ $stmt = $conn->prepare("
 ");
 
 
-if (!$stmt) {
-
+if (!$stmt)
+{
     echo json_encode([
         "status" => "error",
         "message" => "Controller prepare failed"
@@ -132,8 +149,8 @@ $stmt->bind_param(
 );
 
 
-if (!$stmt->execute()) {
-
+if (!$stmt->execute())
+{
     echo json_encode([
         "status" => "error",
         "message" => "Controller query failed"
@@ -145,15 +162,16 @@ if (!$stmt->execute()) {
 }
 
 
-$result = $stmt->get_result();
+$result =
+    $stmt->get_result();
 
 
 /* =========================================================
    CONTROLLER NOT FOUND
-   ========================================================= */
+========================================================= */
 
-if ($result->num_rows === 0) {
-
+if ($result->num_rows === 0)
+{
     echo json_encode([
         "status" => "error",
         "message" =>
@@ -166,20 +184,156 @@ if ($result->num_rows === 0) {
 }
 
 
-$controller = $result->fetch_assoc();
+$controller =
+    $result->fetch_assoc();
+
 
 $stmt->close();
 
 
 /* =========================================================
-   CHECK ACTIVE
-   ========================================================= */
+   CURRENT INDIA TIME
+========================================================= */
 
-if ((int)$controller["active"] !== 1) {
+$current_time =
+    new DateTime(
+        "now",
+        new DateTimeZone("Asia/Kolkata")
+    );
+
+
+$current_time_string =
+    $current_time->format(
+        "Y-m-d H:i:s"
+    );
+
+
+/* =========================================================
+   CALENDAR TIME CONTROL
+=========================================================
+
+   Logic:
+
+   1. Controller must be ACTIVE.
+   2. START TIME must be reached.
+   3. END TIME must not have passed.
+
+   If start_time or end_time is NULL/empty,
+   calendar restriction is not applied.
+
+========================================================= */
+
+$calendar_allowed = true;
+
+$calendar_status = "NO_SCHEDULE";
+
+
+$start_time =
+    $controller["start_time"] ?? null;
+
+$end_time =
+    $controller["end_time"] ?? null;
+
+
+/* ---------------------------------------------------------
+   If both START and END are present
+--------------------------------------------------------- */
+
+if (
+    !empty($start_time) &&
+    !empty($end_time)
+)
+{
+
+    try
+    {
+
+        $start_datetime =
+            new DateTime(
+                $start_time,
+                new DateTimeZone("Asia/Kolkata")
+            );
+
+
+        $end_datetime =
+            new DateTime(
+                $end_time,
+                new DateTimeZone("Asia/Kolkata")
+            );
+
+
+        if (
+            $current_time < $start_datetime
+        )
+        {
+
+            $calendar_allowed = false;
+
+            $calendar_status =
+                "NOT_STARTED";
+        }
+        elseif (
+            $current_time > $end_datetime
+        )
+        {
+
+            $calendar_allowed = false;
+
+            $calendar_status =
+                "EXPIRED";
+        }
+        else
+        {
+
+            $calendar_allowed = true;
+
+            $calendar_status =
+                "ACTIVE";
+        }
+
+    }
+    catch (Exception $e)
+    {
+
+        $calendar_allowed = false;
+
+        $calendar_status =
+            "INVALID_SCHEDULE";
+    }
+}
+
+
+/* =========================================================
+   CONTROLLER ACTIVE CHECK
+========================================================= */
+
+if (
+    (int)$controller["active"] !== 1
+)
+{
 
     echo json_encode([
+
         "status" => "error",
-        "message" => "Controller is inactive"
+
+        "message" =>
+            "Controller is inactive",
+
+        "controller_id" =>
+            $controller_id,
+
+        "calendar_status" =>
+            $calendar_status,
+
+        "current_time" =>
+            $current_time_string,
+
+        "start_time" =>
+            $start_time,
+
+        "end_time" =>
+            $end_time
+
     ]);
 
     exit;
@@ -187,48 +341,20 @@ if ((int)$controller["active"] !== 1) {
 
 
 /* =========================================================
-   INDIA STANDARD TIME
-   =========================================================
-
-   Render normally uses UTC.
-
-   We explicitly generate IST here.
-
-   IST = UTC + 5 hours 30 minutes.
-
-   Database field:
-       controllers.last_seen
-       DATETIME
-========================================================= */
-
-$utcTimestamp = time();
-
-$indiaTimestamp =
-    $utcTimestamp + (5 * 60 * 60) + (30 * 60);
-
-$last_seen = gmdate(
-    "Y-m-d H:i:s",
-    $indiaTimestamp
-);
-
-
-/* =========================================================
    UPDATE LAST_SEEN
-   =========================================================
-
-   Only the authenticated controller is updated.
 ========================================================= */
 
-$stmt = $conn->prepare("
-    UPDATE controllers
-    SET last_seen = ?
-    WHERE controller_id = ?
-      AND device_token = ?
-");
+$stmt =
+    $conn->prepare("
+        UPDATE controllers
+        SET last_seen = ?
+        WHERE controller_id = ?
+          AND device_token = ?
+    ");
 
 
-if (!$stmt) {
-
+if (!$stmt)
+{
     echo json_encode([
         "status" => "error",
         "message" => "last_seen prepare failed"
@@ -240,17 +366,18 @@ if (!$stmt) {
 
 $stmt->bind_param(
     "sss",
-    $last_seen,
+    $current_time_string,
     $controller_id,
     $device_token
 );
 
 
-if (!$stmt->execute()) {
-
+if (!$stmt->execute())
+{
     echo json_encode([
         "status" => "error",
-        "message" => "Could not update last_seen"
+        "message" =>
+            "Could not update last_seen"
     ]);
 
     $stmt->close();
@@ -263,40 +390,91 @@ $stmt->close();
 
 
 /* =========================================================
-   ACTION = GET
-   =========================================================
+   CALENDAR TIME NOT ACTIVE
+=========================================================
 
-   ESP8266 uses this action to read D1-D8.
+   IMPORTANT:
+
+   The ESP must receive a clear response when the
+   controller is outside its permitted calendar period.
+
+   We return all D1-D8 as OFF.
+
 ========================================================= */
 
-if ($action === "get") {
+if (!$calendar_allowed)
+{
+
+    echo json_encode([
+
+        "status" => "ok",
+
+        "controller_id" =>
+            $controller_id,
+
+        "calendar_allowed" =>
+            false,
+
+        "calendar_status" =>
+            $calendar_status,
+
+        "current_time" =>
+            $current_time_string,
+
+        "start_time" =>
+            $start_time,
+
+        "end_time" =>
+            $end_time,
+
+        "D1" => 0,
+        "D2" => 0,
+        "D3" => 0,
+        "D4" => 0,
+        "D5" => 0,
+        "D6" => 0,
+        "D7" => 0,
+        "D8" => 0,
+
+        "last_seen" =>
+            $current_time_string
+
+    ]);
+
+    exit;
+}
 
 
-    /* -----------------------------------------------------
-       READ D1-D8 FOR THIS CONTROLLER
-       ----------------------------------------------------- */
+/* =========================================================
+   ACTION = GET
+========================================================= */
 
-    $stmt = $conn->prepare("
-        SELECT
-            D1,
-            D2,
-            D3,
-            D4,
-            D5,
-            D6,
-            D7,
-            D8
-        FROM esp_control
-        WHERE controller_id = ?
-        LIMIT 1
-    ");
+if ($action === "get")
+{
+
+    $stmt =
+        $conn->prepare("
+            SELECT
+                D1,
+                D2,
+                D3,
+                D4,
+                D5,
+                D6,
+                D7,
+                D8
+            FROM esp_control
+            WHERE controller_id = ?
+            LIMIT 1
+        ");
 
 
-    if (!$stmt) {
-
+    if (!$stmt)
+    {
         echo json_encode([
             "status" => "error",
-            "message" => "esp_control prepare failed"
+            "message" =>
+                "esp_control prepare failed"
         ]);
 
         exit;
@@ -309,11 +487,12 @@ if ($action === "get") {
     );
 
 
-    if (!$stmt->execute()) {
-
+    if (!$stmt->execute())
+    {
         echo json_encode([
             "status" => "error",
-            "message" => "esp_control query failed"
+            "message" =>
+                "esp_control query failed"
         ]);
 
         $stmt->close();
@@ -322,15 +501,12 @@ if ($action === "get") {
     }
 
 
-    $result = $stmt->get_result();
+    $result =
+        $stmt->get_result();
 
 
-    /* -----------------------------------------------------
-       NO PIN RECORD
-       ----------------------------------------------------- */
-
-    if ($result->num_rows === 0) {
-
+    if ($result->num_rows === 0)
+    {
         echo json_encode([
             "status" => "error",
             "message" =>
@@ -343,14 +519,16 @@ if ($action === "get") {
     }
 
 
-    $row = $result->fetch_assoc();
+    $row =
+        $result->fetch_assoc();
+
 
     $stmt->close();
 
 
     /* -----------------------------------------------------
        RETURN D1-D8
-       ----------------------------------------------------- */
+    ----------------------------------------------------- */
 
     echo json_encode([
 
@@ -358,6 +536,21 @@ if ($action === "get") {
 
         "controller_id" =>
             $controller_id,
+
+        "calendar_allowed" =>
+            true,
+
+        "calendar_status" =>
+            "ACTIVE",
+
+        "current_time" =>
+            $current_time_string,
+
+        "start_time" =>
+            $start_time,
+
+        "end_time" =>
+            $end_time,
 
         "D1" => (int)$row["D1"],
         "D2" => (int)$row["D2"],
@@ -369,7 +562,7 @@ if ($action === "get") {
         "D8" => (int)$row["D8"],
 
         "last_seen" =>
-            $last_seen
+            $current_time_string
 
     ]);
 
@@ -379,38 +572,44 @@ if ($action === "get") {
 
 /* =========================================================
    ACTION = SET
-   =========================================================
+=========================================================
 
    Example:
 
    action=set
    controller_id=ESP0001
-   device_token=ESP0001-TOKEN
+   device_token=ESP0001-TOKEN-2026-A7K9X2
    pin=D1
    value=1
+
 ========================================================= */
 
-if ($action === "set") {
+if ($action === "set")
+{
+
+    $pin =
+        strtoupper(
+            trim($_GET["pin"] ?? "")
+        );
 
 
-    $pin = strtoupper(
-        trim($_GET["pin"] ?? "")
-    );
-
-
-    $value = isset($_GET["value"])
-        ? (int)$_GET["value"]
-        : -1;
+    $value =
+        isset($_GET["value"])
+            ? (int)$_GET["value"]
+            : -1;
 
 
     /* -----------------------------------------------------
        VALIDATE PIN
-       ----------------------------------------------------- */
+    ----------------------------------------------------- */
 
-    if (!preg_match(
-        '/^D[1-8]$/',
-        $pin
-    )) {
+    if (
+        !preg_match(
+            '/^D[1-8]$/',
+            $pin
+        )
+    )
+    {
 
         echo json_encode([
             "status" => "error",
@@ -423,12 +622,13 @@ if ($action === "set") {
 
     /* -----------------------------------------------------
        VALIDATE VALUE
-       ----------------------------------------------------- */
+    ----------------------------------------------------- */
 
     if (
         $value !== 0 &&
         $value !== 1
-    ) {
+    )
+    {
 
         echo json_encode([
             "status" => "error",
@@ -440,11 +640,7 @@ if ($action === "set") {
 
 
     /* -----------------------------------------------------
-       UPDATE SELECTED PIN
-       -----------------------------------------------------
-
-       $pin has already been strictly validated as D1-D8,
-       so it is safe to use as a column name.
+       UPDATE PIN
     ----------------------------------------------------- */
 
     $sql = "
@@ -454,10 +650,12 @@ if ($action === "set") {
     ";
 
 
-    $stmt = $conn->prepare($sql);
+    $stmt =
+        $conn->prepare($sql);
 
 
-    if (!$stmt) {
+    if (!$stmt)
+    {
 
         echo json_encode([
             "status" => "error",
@@ -476,7 +674,8 @@ if ($action === "set") {
     );
 
 
-    if (!$stmt->execute()) {
+    if (!$stmt->execute())
+    {
 
         echo json_encode([
             "status" => "error",
@@ -493,10 +692,6 @@ if ($action === "set") {
     $stmt->close();
 
 
-    /* -----------------------------------------------------
-       SUCCESS
-       ----------------------------------------------------- */
-
     echo json_encode([
 
         "status" => "ok",
@@ -504,12 +699,29 @@ if ($action === "set") {
         "controller_id" =>
             $controller_id,
 
-        "pin" => $pin,
+        "pin" =>
+            $pin,
 
-        "value" => $value,
+        "value" =>
+            $value,
+
+        "calendar_allowed" =>
+            true,
+
+        "calendar_status" =>
+            "ACTIVE",
+
+        "current_time" =>
+            $current_time_string,
+
+        "start_time" =>
+            $start_time,
+
+        "end_time" =>
+            $end_time,
 
         "last_seen" =>
-            $last_seen
+            $current_time_string
 
     ]);
 
@@ -519,7 +731,7 @@ if ($action === "set") {
 
 /* =========================================================
    UNKNOWN ACTION
-   ========================================================= */
+========================================================= */
 
 echo json_encode([
 
