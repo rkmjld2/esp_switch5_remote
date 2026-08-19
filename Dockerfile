@@ -1,47 +1,28 @@
-esp_switch5_remote/
-│
-├── index.php
-├── api.php
-├── db.php
-├── config.php
-├── app.ino
-├── Dockerfile
-├── .gitignore
-└── README.md
+FROM php:8.2-apache
 
-esp_switch5_remote/
-└── config.php
+# Install MySQL/MariaDB extension required by mysqli
+RUN docker-php-ext-install mysqli
 
+# Enable Apache rewrite module
+RUN a2enmod rewrite
 
-After that we will build:
+# Copy project files
+COPY . /var/www/html/
 
-db.php
-api.php
-index.php
-app.ino
-Dockerfile
-.gitignore
-README.md
+# Set working directory
+WORKDIR /var/www/html/
 
-esp_switch5_remote/
-    index.php      ← I will provide
-    api.php        ← provided
-    db.php         ← provided
-    config.php     ← provided
-    app.ino        ← I will provide
-    Dockerfile
-    .gitignore
-    README.md
-//////////////////comparison between old esp-switch5 and new espp_switch5_remote 
-| Old ESP-SWITCH5                                  | New `esp_switch5_remote`          |
-| ------------------------------------------------ | --------------------------------- |
-| `esp-switch4-1.onrender.com`                     | `esp-switch5-remote.onrender.com` |
-| ESP-SWITCH3/4 comments                           | ESP-SWITCH5 REMOTE                |
-| Same Wi-Fi recovery                              | **Preserved**                     |
-| Same D1–D8                                       | **Preserved**                     |
-| Same 3-second polling                            | **Preserved**                     |
-| Same controller ID                               | **Preserved**                     |
-| Same device token                                | **Preserved**                     |
-| Same BearSSL HTTPS                               | **Preserved**                     |
-| Same JSON D1–D8 reading                          | **Preserved**                     |
-| Same automatic restart after 2-min Wi-Fi failure | **Preserved**                     |
+# Make sure Apache can read the application
+RUN chown -R www-data:www-data /var/www/html/
+
+# Render provides the PORT environment variable.
+# Apache listens on port 80 by default, so configure it
+# to use Render's PORT when supplied.
+
+RUN sed -i 's/Listen 80/Listen 10000/' /etc/apache2/ports.conf && \
+    sed -i 's/<VirtualHost \*:80>/<VirtualHost *:10000>/' \
+    /etc/apache2/sites-available/000-default.conf
+
+EXPOSE 10000
+
+CMD ["apache2-foreground"]
