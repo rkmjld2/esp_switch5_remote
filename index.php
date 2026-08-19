@@ -11,34 +11,18 @@ Server:
 Database:
     TiDB Cloud
 
-Database:
-    esp_switch5
-
-Tables:
-    controllers
-    esp_control
-
-Calendar:
+Timezone:
     Asia/Kolkata
 
-Features:
-    - Administrator login
-    - Multi-controller selection
-    - Calendar START TIME
-    - Calendar END TIME
-    - D1-D8 control
-    - Automatic refresh
-    - Overnight schedules supported
+Calendar Time Control:
+    START TIME
+    END TIME
+
+DATETIME format:
+    YYYY-MM-DD HH:MM:SS
 
 ============================================================
 */
-
-
-/* =========================================================
-   TIMEZONE
-========================================================= */
-
-date_default_timezone_set("Asia/Kolkata");
 
 
 /* =========================================================
@@ -48,6 +32,8 @@ date_default_timezone_set("Asia/Kolkata");
 require_once __DIR__ . "/db.php";
 
 session_start();
+
+date_default_timezone_set("Asia/Kolkata");
 
 
 /* =========================================================
@@ -133,6 +119,7 @@ if (
 body {
 
     margin: 0;
+
     padding: 20px;
 
     font-family: Arial, Helvetica, sans-serif;
@@ -200,6 +187,7 @@ button {
 }
 
 button:hover {
+
     opacity: 0.85;
 }
 
@@ -238,7 +226,7 @@ button:hover {
 if ($login_error !== "") {
 
     echo '<div class="error">' .
-         htmlspecialchars($login_error, ENT_QUOTES, "UTF-8") .
+         htmlspecialchars($login_error) .
          '</div>';
 }
 
@@ -298,160 +286,6 @@ $message_type = "";
 
 
 /* =========================================================
-   CALENDAR TIME - SAVE START
-========================================================= */
-
-if (isset($_POST["save_start"])) {
-
-    $controller_id =
-        trim($_POST["controller_id"] ?? "");
-
-    $start_time =
-        trim($_POST["start_time"] ?? "");
-
-
-    if ($controller_id === "") {
-
-        $message = "Controller ID missing.";
-        $message_type = "error";
-
-    }
-    elseif (
-        !preg_match(
-            '/^(?:[01]\d|2[0-3]):[0-5]\d$/',
-            $start_time
-        )
-    ) {
-
-        $message = "Invalid START TIME.";
-        $message_type = "error";
-
-    }
-    else {
-
-        $stmt = $conn->prepare("
-            UPDATE controllers
-            SET start_time = ?
-            WHERE controller_id = ?
-        ");
-
-        if ($stmt) {
-
-            $stmt->bind_param(
-                "ss",
-                $start_time,
-                $controller_id
-            );
-
-            if ($stmt->execute()) {
-
-                $message =
-                    "START TIME saved successfully: " .
-                    $start_time;
-
-                $message_type = "success";
-
-            } else {
-
-                $message =
-                    "Could not save START TIME.";
-
-                $message_type = "error";
-            }
-
-            $stmt->close();
-
-        } else {
-
-            $message =
-                "START TIME update preparation failed.";
-
-            $message_type = "error";
-        }
-    }
-
-    $selected_controller = $controller_id;
-}
-
-
-/* =========================================================
-   CALENDAR TIME - SAVE END
-========================================================= */
-
-if (isset($_POST["save_end"])) {
-
-    $controller_id =
-        trim($_POST["controller_id"] ?? "");
-
-    $end_time =
-        trim($_POST["end_time"] ?? "");
-
-
-    if ($controller_id === "") {
-
-        $message = "Controller ID missing.";
-        $message_type = "error";
-
-    }
-    elseif (
-        !preg_match(
-            '/^(?:[01]\d|2[0-3]):[0-5]\d$/',
-            $end_time
-        )
-    ) {
-
-        $message = "Invalid END TIME.";
-        $message_type = "error";
-
-    }
-    else {
-
-        $stmt = $conn->prepare("
-            UPDATE controllers
-            SET end_time = ?
-            WHERE controller_id = ?
-        ");
-
-        if ($stmt) {
-
-            $stmt->bind_param(
-                "ss",
-                $end_time,
-                $controller_id
-            );
-
-            if ($stmt->execute()) {
-
-                $message =
-                    "END TIME saved successfully: " .
-                    $end_time;
-
-                $message_type = "success";
-
-            } else {
-
-                $message =
-                    "Could not save END TIME.";
-
-                $message_type = "error";
-            }
-
-            $stmt->close();
-
-        } else {
-
-            $message =
-                "END TIME update preparation failed.";
-
-            $message_type = "error";
-        }
-    }
-
-    $selected_controller = $controller_id;
-}
-
-
-/* =========================================================
    SET PIN
 ========================================================= */
 
@@ -476,25 +310,17 @@ if (isset($_POST["set_pin"])) {
         $message = "Controller ID missing.";
         $message_type = "error";
 
-    }
-    elseif (
-        !preg_match('/^D[1-8]$/', $pin)
-    ) {
+    } elseif (!preg_match('/^D[1-8]$/', $pin)) {
 
         $message = "Invalid pin.";
         $message_type = "error";
 
-    }
-    elseif (
-        $value !== 0 &&
-        $value !== 1
-    ) {
+    } elseif ($value !== 0 && $value !== 1) {
 
         $message = "Invalid value.";
         $message_type = "error";
 
-    }
-    else {
+    } else {
 
         $stmt = $conn->prepare("
             SELECT active
@@ -512,14 +338,11 @@ if (isset($_POST["set_pin"])) {
 
             $stmt->execute();
 
-            $result =
-                $stmt->get_result();
+            $result = $stmt->get_result();
 
             if ($result->num_rows === 0) {
 
-                $message =
-                    "Controller not found.";
-
+                $message = "Controller not found.";
                 $message_type = "error";
 
             } else {
@@ -527,9 +350,7 @@ if (isset($_POST["set_pin"])) {
                 $controller =
                     $result->fetch_assoc();
 
-                if (
-                    (int)$controller["active"] !== 1
-                ) {
+                if ((int)$controller["active"] !== 1) {
 
                     $message =
                         "Controller is inactive.";
@@ -537,11 +358,6 @@ if (isset($_POST["set_pin"])) {
                     $message_type = "error";
 
                 } else {
-
-                    /*
-                     * PIN has already been strictly
-                     * validated as D1-D8.
-                     */
 
                     $sql = "
                         UPDATE esp_control
@@ -598,12 +414,190 @@ if (isset($_POST["set_pin"])) {
             $message =
                 "Controller query failed.";
 
-            $message_type = "error";
+            $message_type =
+                "error";
         }
+
+        $selected_controller =
+            $controller_id;
     }
+}
+
+
+/* =========================================================
+   SAVE CALENDAR TIME
+========================================================= */
+
+if (isset($_POST["save_calendar"])) {
+
+    $controller_id =
+        trim($_POST["controller_id"] ?? "");
+
+    $start_time =
+        trim($_POST["start_time"] ?? "");
+
+    $end_time =
+        trim($_POST["end_time"] ?? "");
+
 
     $selected_controller =
         $controller_id;
+
+
+    /* -----------------------------------------------------
+       BASIC VALIDATION
+    ----------------------------------------------------- */
+
+    if ($controller_id === "") {
+
+        $message =
+            "Controller ID missing.";
+
+        $message_type =
+            "error";
+
+    } elseif ($start_time === "") {
+
+        $message =
+            "Start time is required.";
+
+        $message_type =
+            "error";
+
+    } elseif ($end_time === "") {
+
+        $message =
+            "End time is required.";
+
+        $message_type =
+            "error";
+
+    } else {
+
+        /*
+         * HTML datetime-local gives:
+         *
+         * YYYY-MM-DDTHH:MM
+         *
+         * Convert to MySQL/TiDB:
+         *
+         * YYYY-MM-DD HH:MM:SS
+         */
+
+        $start_datetime =
+            str_replace(
+                "T",
+                " ",
+                $start_time
+            ) . ":00";
+
+        $end_datetime =
+            str_replace(
+                "T",
+                " ",
+                $end_time
+            ) . ":00";
+
+
+        /* -------------------------------------------------
+           CHECK CONTROLLER
+        ------------------------------------------------- */
+
+        $stmt =
+            $conn->prepare("
+                SELECT controller_id
+                FROM controllers
+                WHERE controller_id = ?
+                LIMIT 1
+            ");
+
+        if (!$stmt) {
+
+            $message =
+                "Controller query failed.";
+
+            $message_type =
+                "error";
+
+        } else {
+
+            $stmt->bind_param(
+                "s",
+                $controller_id
+            );
+
+            $stmt->execute();
+
+            $result =
+                $stmt->get_result();
+
+
+            if ($result->num_rows === 0) {
+
+                $message =
+                    "Controller not found.";
+
+                $message_type =
+                    "error";
+
+            } else {
+
+                /* -----------------------------------------
+                   SAVE START AND END TIME
+                ----------------------------------------- */
+
+                $update =
+                    $conn->prepare("
+                        UPDATE controllers
+                        SET
+                            start_time = ?,
+                            end_time = ?
+                        WHERE controller_id = ?
+                    ");
+
+                if (!$update) {
+
+                    $message =
+                        "Calendar update preparation failed.";
+
+                    $message_type =
+                        "error";
+
+                } else {
+
+                    $update->bind_param(
+                        "sss",
+                        $start_datetime,
+                        $end_datetime,
+                        $controller_id
+                    );
+
+
+                    if ($update->execute()) {
+
+                        $message =
+                            "Calendar START TIME and END TIME saved successfully.";
+
+                        $message_type =
+                            "success";
+
+                    } else {
+
+                        $message =
+                            "Could not save calendar time.";
+
+                        $message_type =
+                            "error";
+                    }
+
+
+                    $update->close();
+                }
+            }
+
+            $stmt->close();
+        }
+    }
 }
 
 
@@ -613,15 +607,16 @@ if (isset($_POST["set_pin"])) {
 
 $controllers = [];
 
-$result = $conn->query("
-    SELECT
-        controller_id,
-        customer_name,
-        active
-    FROM controllers
-    WHERE active = 1
-    ORDER BY controller_id
-");
+$result =
+    $conn->query("
+        SELECT
+            controller_id,
+            customer_name,
+            active
+        FROM controllers
+        WHERE active = 1
+        ORDER BY controller_id
+    ");
 
 if ($result) {
 
@@ -633,7 +628,7 @@ if ($result) {
 
 
 /* =========================================================
-   DEFAULT VALUES
+   CONTROLLER INFORMATION
 ========================================================= */
 
 $selected_customer = "";
@@ -647,24 +642,21 @@ $selected_start_time = "";
 $selected_end_time = "";
 
 
-/* =========================================================
-   CONTROLLER INFORMATION
-========================================================= */
-
 if ($selected_controller !== "") {
 
-    $stmt = $conn->prepare("
-        SELECT
-            controller_id,
-            customer_name,
-            active,
-            last_seen,
-            start_time,
-            end_time
-        FROM controllers
-        WHERE controller_id = ?
-        LIMIT 1
-    ");
+    $stmt =
+        $conn->prepare("
+            SELECT
+                controller_id,
+                customer_name,
+                active,
+                last_seen,
+                start_time,
+                end_time
+            FROM controllers
+            WHERE controller_id = ?
+            LIMIT 1
+        ");
 
     if ($stmt) {
 
@@ -687,14 +679,18 @@ if ($selected_controller !== "") {
             $selected_customer =
                 $row["customer_name"] ?? "";
 
+
             $selected_active =
                 (int)($row["active"] ?? 0);
+
 
             $selected_last_seen =
                 $row["last_seen"] ?? "";
 
+
             $selected_start_time =
                 $row["start_time"] ?? "";
+
 
             $selected_end_time =
                 $row["end_time"] ?? "";
@@ -719,25 +715,27 @@ $pin_values = [
     "D6" => 0,
     "D7" => 0,
     "D8" => 0
+
 ];
 
 
 if ($selected_controller !== "") {
 
-    $stmt = $conn->prepare("
-        SELECT
-            D1,
-            D2,
-            D3,
-            D4,
-            D5,
-            D6,
-            D7,
-            D8
-        FROM esp_control
-        WHERE controller_id = ?
-        LIMIT 1
-    ");
+    $stmt =
+        $conn->prepare("
+            SELECT
+                D1,
+                D2,
+                D3,
+                D4,
+                D5,
+                D6,
+                D7,
+                D8
+            FROM esp_control
+            WHERE controller_id = ?
+            LIMIT 1
+        ");
 
     if ($stmt) {
 
@@ -775,91 +773,40 @@ if ($selected_controller !== "") {
 
 
 /* =========================================================
-   CALENDAR TIME STATUS
+   FORMAT DATETIME FOR HTML DATETIME-LOCAL
 ========================================================= */
 
-$calendar_status = "NOT CONFIGURED";
-
-$current_time =
-    date("H:i");
-
-
-if (
-    $selected_start_time !== "" &&
-    $selected_end_time !== ""
-) {
+function datetime_for_input($value)
+{
+    if (!$value) {
+        return "";
+    }
 
     /*
-     * Convert possible HH:MM:SS database value
-     * into HH:MM for comparison.
+     * Database:
+     * YYYY-MM-DD HH:MM:SS
+     *
+     * HTML:
+     * YYYY-MM-DDTHH:MM
      */
 
-    $start_compare =
-        substr($selected_start_time, 0, 5);
-
-    $end_compare =
-        substr($selected_end_time, 0, 5);
-
-
-    if ($start_compare === $end_compare) {
-
-        /*
-         * Same START and END time means
-         * the schedule is active all day.
-         */
-
-        $calendar_status =
-            "WITHIN TIME";
-
-    }
-    elseif ($start_compare < $end_compare) {
-
-        /*
-         * Normal schedule.
-         *
-         * Example:
-         * 08:00 -> 20:00
-         */
-
-        if (
-            $current_time >= $start_compare &&
-            $current_time <= $end_compare
-        ) {
-
-            $calendar_status =
-                "WITHIN TIME";
-
-        } else {
-
-            $calendar_status =
-                "OUTSIDE TIME";
-        }
-
-    }
-    else {
-
-        /*
-         * Overnight schedule.
-         *
-         * Example:
-         * 22:00 -> 06:00
-         */
-
-        if (
-            $current_time >= $start_compare ||
-            $current_time <= $end_compare
-        ) {
-
-            $calendar_status =
-                "WITHIN TIME";
-
-        } else {
-
-            $calendar_status =
-                "OUTSIDE TIME";
-        }
-    }
+    return date(
+        "Y-m-d\TH:i",
+        strtotime($value)
+    );
 }
+
+
+$start_input =
+    datetime_for_input(
+        $selected_start_time
+    );
+
+
+$end_input =
+    datetime_for_input(
+        $selected_end_time
+    );
 
 ?>
 <!DOCTYPE html>
@@ -957,6 +904,7 @@ h1 {
 }
 
 .logout:hover {
+
     opacity: 0.85;
 }
 
@@ -1051,27 +999,27 @@ h1 {
 
 
 /* =========================================================
-   CALENDAR TIME CONTROL
+   CALENDAR TIME
 ========================================================= */
 
 .calendar-box {
 
     background: #f8f9fa;
 
-    border: 1px solid #ced4da;
+    border: 1px solid #ddd;
 
     border-radius: 10px;
 
     padding: 20px;
 
     margin-bottom: 25px;
-
-    text-align: center;
 }
 
 .calendar-title {
 
-    font-size: 21px;
+    text-align: center;
+
+    font-size: 20px;
 
     font-weight: bold;
 
@@ -1080,122 +1028,84 @@ h1 {
 
 .calendar-zone {
 
+    text-align: center;
+
     color: #666;
 
     margin-bottom: 20px;
-
-    font-size: 14px;
 }
 
-.time-row {
+.calendar-grid {
 
     display: grid;
 
     grid-template-columns:
-        1fr 1fr;
+        repeat(
+            auto-fit,
+            minmax(220px, 1fr)
+        );
 
-    gap: 20px;
-
-    max-width: 650px;
-
-    margin: auto;
+    gap: 15px;
 }
 
-.time-card {
+.time-field {
 
-    background: white;
+    display: flex;
 
-    border: 1px solid #ddd;
-
-    border-radius: 8px;
-
-    padding: 15px;
+    flex-direction: column;
 }
 
-.time-card label {
-
-    display: block;
+.time-field label {
 
     font-weight: bold;
 
-    margin-bottom: 10px;
+    margin-bottom: 7px;
 }
 
-.time-card input[type="time"] {
+.time-field input {
 
     width: 100%;
 
-    padding: 10px;
+    padding: 12px;
 
-    font-size: 17px;
+    font-size: 16px;
 
     border: 1px solid #aaa;
 
     border-radius: 6px;
 
-    margin-bottom: 10px;
+    background: white;
 }
 
-.save-btn {
+.save-time {
 
-    width: 100%;
+    margin-top: 18px;
+
+    text-align: center;
+}
+
+.save-time button {
+
+    width: auto;
 
     background: #007bff;
 
     color: white;
 
-    padding: 10px;
+    padding: 11px 25px;
 
     border: none;
 
     border-radius: 6px;
 
-    cursor: pointer;
-
     font-size: 15px;
-}
 
-.save-btn:hover {
-    opacity: 0.85;
-}
-
-.calendar-status {
-
-    margin-top: 20px;
-
-    padding: 12px;
-
-    border-radius: 7px;
-
-    font-weight: bold;
-
-    font-size: 17px;
-}
-
-.status-within {
-
-    background: #d4edda;
-
-    color: #155724;
-}
-
-.status-outside {
-
-    background: #f8d7da;
-
-    color: #721c24;
-}
-
-.status-none {
-
-    background: #fff3cd;
-
-    color: #856404;
+    cursor: pointer;
 }
 
 
 /* =========================================================
-   PIN GRID
+   D1-D8
 ========================================================= */
 
 .pin-grid {
@@ -1243,10 +1153,12 @@ h1 {
 }
 
 .state-on {
+
     color: green;
 }
 
 .state-off {
+
     color: red;
 }
 
@@ -1287,6 +1199,7 @@ button {
 }
 
 button:hover {
+
     opacity: 0.85;
 }
 
@@ -1347,11 +1260,8 @@ button:hover {
     }
 
     .pin-grid {
-        grid-template-columns: 1fr 1fr;
-    }
 
-    .time-row {
-        grid-template-columns: 1fr;
+        grid-template-columns: 1fr 1fr;
     }
 }
 
@@ -1362,11 +1272,6 @@ button:hover {
 <body>
 
 <div class="container">
-
-
-<!-- ======================================================
-     HEADER
-======================================================= -->
 
 <div class="header">
 
@@ -1416,17 +1321,17 @@ foreach ($controllers as $controller) {
 <option
     value="<?php
         echo htmlspecialchars(
-            $controller["controller_id"] ?? "",
-            ENT_QUOTES,
-            "UTF-8"
+            $controller["controller_id"],
+            ENT_QUOTES
         );
     ?>"
     <?php
 
     if (
         $selected_controller ===
-        ($controller["controller_id"] ?? "")
+        $controller["controller_id"]
     ) {
+
         echo "selected";
     }
 
@@ -1436,9 +1341,7 @@ foreach ($controllers as $controller) {
 <?php
 
 echo htmlspecialchars(
-    $controller["controller_id"] ?? "",
-    ENT_QUOTES,
-    "UTF-8"
+    $controller["controller_id"]
 );
 
 if (
@@ -1448,9 +1351,7 @@ if (
     echo " - ";
 
     echo htmlspecialchars(
-        $controller["customer_name"] ?? "",
-        ENT_QUOTES,
-        "UTF-8"
+        $controller["customer_name"]
     );
 }
 
@@ -1486,11 +1387,7 @@ if ($message !== "") {
 
 <?php
 
-echo htmlspecialchars(
-    $message,
-    ENT_QUOTES,
-    "UTF-8"
-);
+echo htmlspecialchars($message);
 
 ?>
 
@@ -1523,9 +1420,7 @@ Controller ID
 <?php
 
 echo htmlspecialchars(
-    $selected_controller,
-    ENT_QUOTES,
-    "UTF-8"
+    $selected_controller
 );
 
 ?>
@@ -1546,9 +1441,7 @@ Customer
 <?php
 
 echo htmlspecialchars(
-    $selected_customer ?: "Not specified",
-    ENT_QUOTES,
-    "UTF-8"
+    $selected_customer
 );
 
 ?>
@@ -1596,13 +1489,11 @@ Last Seen
 <?php
 
 if (
-    $selected_last_seen !== ""
+    trim($selected_last_seen) !== ""
 ) {
 
     echo htmlspecialchars(
-        $selected_last_seen,
-        ENT_QUOTES,
-        "UTF-8"
+        $selected_last_seen
     );
 
 } else {
@@ -1634,165 +1525,83 @@ Calendar: Asia/Kolkata (India Standard Time)
 </div>
 
 
-<div class="time-row">
-
-
-<!-- START TIME -->
-
-<div class="time-card">
-
 <form method="post">
+
+<input
+    type="hidden"
+    name="controller_id"
+    value="<?php
+        echo htmlspecialchars(
+            $selected_controller,
+            ENT_QUOTES
+        );
+    ?>"
+>
+
+
+<div class="calendar-grid">
+
+
+<div class="time-field">
 
 <label for="start_time">
 START TIME
 </label>
 
 <input
-    type="time"
+    type="datetime-local"
     id="start_time"
     name="start_time"
     value="<?php
         echo htmlspecialchars(
-            substr(
-                $selected_start_time,
-                0,
-                5
-            ),
-            ENT_QUOTES,
-            "UTF-8"
+            $start_input,
+            ENT_QUOTES
         );
     ?>"
+    step="60"
     required
 >
-
-<input
-    type="hidden"
-    name="controller_id"
-    value="<?php
-        echo htmlspecialchars(
-            $selected_controller,
-            ENT_QUOTES,
-            "UTF-8"
-        );
-    ?>"
->
-
-<button
-    type="submit"
-    name="save_start"
-    class="save-btn"
->
-SAVE START
-</button>
-
-</form>
 
 </div>
 
 
-<!-- END TIME -->
-
-<div class="time-card">
-
-<form method="post">
+<div class="time-field">
 
 <label for="end_time">
 END TIME
 </label>
 
 <input
-    type="time"
+    type="datetime-local"
     id="end_time"
     name="end_time"
     value="<?php
         echo htmlspecialchars(
-            substr(
-                $selected_end_time,
-                0,
-                5
-            ),
-            ENT_QUOTES,
-            "UTF-8"
+            $end_input,
+            ENT_QUOTES
         );
     ?>"
+    step="60"
     required
 >
 
-<input
-    type="hidden"
-    name="controller_id"
-    value="<?php
-        echo htmlspecialchars(
-            $selected_controller,
-            ENT_QUOTES,
-            "UTF-8"
-        );
-    ?>"
->
+</div>
+
+</div>
+
+
+<div class="save-time">
 
 <button
     type="submit"
-    name="save_end"
-    class="save-btn"
+    name="save_calendar"
 >
-SAVE END
+SAVE START / END TIME
 </button>
 
+</div>
+
 </form>
-
-</div>
-
-</div>
-
-
-<!-- CURRENT STATUS -->
-
-<?php
-
-if ($calendar_status === "WITHIN TIME") {
-
-    $status_class = "status-within";
-
-}
-elseif ($calendar_status === "OUTSIDE TIME") {
-
-    $status_class = "status-outside";
-
-}
-else {
-
-    $status_class = "status-none";
-}
-
-?>
-
-<div
-    class="calendar-status <?php
-        echo $status_class;
-    ?>"
->
-
-Current Calendar Status:
-<?php
-
-echo htmlspecialchars(
-    $calendar_status,
-    ENT_QUOTES,
-    "UTF-8"
-);
-
-?>
-
-<br>
-
-Current India Time:
-<?php
-
-echo date("H:i:s");
-
-?>
-
-</div>
 
 </div>
 
@@ -1814,7 +1623,7 @@ for (
     $pin = "D" . $i;
 
     $value =
-        $pin_values[$pin] ?? 0;
+        $pin_values[$pin];
 
 ?>
 
@@ -1823,7 +1632,9 @@ for (
 <div class="pin-name">
 
 <?php
+
 echo $pin;
+
 ?>
 
 </div>
@@ -1849,8 +1660,6 @@ echo $value
 </div>
 
 
-<!-- ON -->
-
 <form
     method="post"
     class="pin-form"
@@ -1862,8 +1671,7 @@ echo $value
     value="<?php
         echo htmlspecialchars(
             $selected_controller,
-            ENT_QUOTES,
-            "UTF-8"
+            ENT_QUOTES
         );
     ?>"
 >
@@ -1893,8 +1701,6 @@ ON
 </form>
 
 
-<!-- OFF -->
-
 <form
     method="post"
     class="pin-form"
@@ -1906,8 +1712,7 @@ ON
     value="<?php
         echo htmlspecialchars(
             $selected_controller,
-            ENT_QUOTES,
-            "UTF-8"
+            ENT_QUOTES
         );
     ?>"
 >
@@ -1936,7 +1741,6 @@ OFF
 
 </form>
 
-
 </div>
 
 <?php
@@ -1950,8 +1754,7 @@ OFF
 
 <?php
 
-}
-else {
+} else {
 
 ?>
 
@@ -1964,7 +1767,6 @@ Please select a controller.
 }
 
 ?>
-
 
 </div>
 
