@@ -1,123 +1,48 @@
 <?php
-/*
- * =========================================================
- * ESP-SWITCH5 REMOTE
- * db.php
- * =========================================================
- *
- * Database:
- *     esp_switch5
- *
- * TiDB Cloud
- *
- * Render Environment Variables:
- *
- *     DB_HOST
- *     DB_USER
- *     DB_PASSWORD
- *     DB_NAME
- *     DB_PORT
- *
- * IMPORTANT:
- *     Do not put the real database password in this file.
- * =========================================================
- */
 
 mysqli_report(
     MYSQLI_REPORT_ERROR |
     MYSQLI_REPORT_STRICT
 );
 
-
-/* =========================================================
-   READ RENDER ENVIRONMENT VARIABLES
-========================================================= */
-
-$host =
+$db_host =
     getenv("DB_HOST");
 
-$user =
+$db_user =
     getenv("DB_USER");
 
-$password =
+$db_password =
     getenv("DB_PASSWORD");
 
-$database =
+$db_name =
     getenv("DB_NAME");
 
-$port =
+$db_port =
     getenv("DB_PORT");
 
 
-/* =========================================================
-   DEFAULT PORT
-========================================================= */
-
-if (
-    !$port
-)
-{
-    $port = 4000;
-}
-
-
-/* =========================================================
-   CHECK REQUIRED VARIABLES
-========================================================= */
-
-$missing = [];
-
-
-if (!$host)
-{
-    $missing[] = "DB_HOST";
-}
-
-
-if (!$user)
-{
-    $missing[] = "DB_USER";
-}
-
-
-if (!$password)
-{
-    $missing[] = "DB_PASSWORD";
-}
-
-
-if (!$database)
-{
-    $missing[] = "DB_NAME";
+if (!$db_port) {
+    $db_port = 4000;
 }
 
 
 if (
-    count($missing) > 0
-)
-{
+    !$db_host ||
+    !$db_user ||
+    !$db_password ||
+    !$db_name
+) {
     die(
-        "Database environment variables missing: " .
-        htmlspecialchars(
-            implode(", ", $missing)
-        )
+        "Database environment variables are missing."
     );
 }
 
 
-/* =========================================================
-   CONNECT TO TiDB CLOUD
-========================================================= */
+try {
 
-try
-{
     $conn =
         mysqli_init();
 
-
-    /*
-     * TiDB Cloud HTTPS/SSL connection.
-     */
 
     mysqli_ssl_set(
         $conn,
@@ -129,26 +54,36 @@ try
     );
 
 
-    mysqli_real_connect(
-        $conn,
-        $host,
-        $user,
-        $password,
-        $database,
-        (int)$port,
-        NULL,
-        MYSQLI_CLIENT_SSL
-    );
+    $connected =
+        mysqli_real_connect(
+            $conn,
+            $db_host,
+            $db_user,
+            $db_password,
+            $db_name,
+            (int)$db_port,
+            NULL,
+            MYSQLI_CLIENT_SSL
+        );
+
+
+    if (!$connected) {
+
+        die(
+            "Database connection failed."
+        );
+    }
 
 
     $conn->set_charset(
         "utf8mb4"
     );
+
 }
 catch (
     mysqli_sql_exception $e
-)
-{
+) {
+
     die(
         "Database connection failed: " .
         htmlspecialchars(
