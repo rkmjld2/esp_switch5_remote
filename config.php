@@ -3,7 +3,7 @@
  * ============================================================
  * ESP-SWITCH5 REMOTE - config.php
  * ============================================================
- * Remote version
+ * Central configuration file
  *
  * Render:
  *   esp-switch5-remote.onrender.com
@@ -12,27 +12,33 @@
  *   TiDB Cloud
  *
  * IMPORTANT:
- * Database credentials are read from environment variables.
- * Do NOT put passwords directly into this file.
+ *   Database credentials and OWNER_PASSWORD are read
+ *   from Render Environment Variables.
+ *
+ *   DO NOT put actual passwords in this file.
  * ============================================================
  */
+
 
 // ------------------------------------------------------------
 // TIMEZONE
 // ------------------------------------------------------------
+
 date_default_timezone_set("Asia/Kolkata");
 
 
 // ------------------------------------------------------------
 // APPLICATION
 // ------------------------------------------------------------
+
 define("APP_NAME", "ESP-SWITCH5 REMOTE");
 
 
 // ------------------------------------------------------------
 // DATABASE
 // ------------------------------------------------------------
-// These values will be supplied by Render Environment Variables.
+//
+// Render Environment Variables:
 //
 // DB_HOST
 // DB_USER
@@ -40,11 +46,26 @@ define("APP_NAME", "ESP-SWITCH5 REMOTE");
 // DB_NAME
 // DB_PORT
 //
+
 $db_host = getenv("DB_HOST") ?: "";
 $db_user = getenv("DB_USER") ?: "";
 $db_password = getenv("DB_PASSWORD") ?: "";
 $db_name = getenv("DB_NAME") ?: "";
 $db_port = getenv("DB_PORT") ?: "4000";
+
+
+// ------------------------------------------------------------
+// OWNER ACCESS
+// ------------------------------------------------------------
+//
+// Owner password is supplied by Render:
+//
+// OWNER_PASSWORD = EspSwitchOwner@2026
+//
+// DO NOT put the actual password in this file.
+//
+
+$owner_password = getenv("OWNER_PASSWORD") ?: "";
 
 
 // ------------------------------------------------------------
@@ -61,20 +82,44 @@ define("ESP_POLL_INTERVAL", 3);
 // ------------------------------------------------------------
 // DEBUG
 // ------------------------------------------------------------
+//
 // Keep false on the live Render server.
+//
+
 define("DEBUG_MODE", false);
 
 
 // ------------------------------------------------------------
-// BASIC VALIDATION
+// BASIC DATABASE VALIDATION
 // ------------------------------------------------------------
+
 if (
     $db_host === "" ||
     $db_user === "" ||
     $db_name === ""
 ) {
+
     if (DEBUG_MODE) {
-        die("Database environment variables are not configured.");
+
+        die(
+            "Database environment variables are not configured."
+        );
     }
 }
+
+
+// ------------------------------------------------------------
+// BASIC OWNER PASSWORD VALIDATION
+// ------------------------------------------------------------
+
+if ($owner_password === "") {
+
+    if (DEBUG_MODE) {
+
+        die(
+            "OWNER_PASSWORD environment variable is not configured."
+        );
+    }
+}
+
 ?>
