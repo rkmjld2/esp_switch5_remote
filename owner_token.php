@@ -1,67 +1,56 @@
 <?php
 /*
-============================================================
- ESP-SWITCH5 REMOTE
- OWNER-ONLY DEVICE TOKEN MANAGEMENT
-============================================================
-
-Purpose:
-    Change the device_token of a controller.
-
-IMPORTANT:
-    This page is NOT part of the customer control panel.
-
-    Customers should NOT be given:
-        owner_token.php
-
-Owner authentication:
-    OWNER_PASSWORD environment variable
-
-Database:
-    TiDB Cloud
-    esp_switch5
-
-Table:
-    controllers
-
-Timezone:
-    Asia/Kolkata
-============================================================
-*/
+ * ============================================================
+ * ESP-SWITCH5 REMOTE
+ * OWNER-ONLY DEVICE TOKEN MANAGEMENT
+ * ============================================================
+ *
+ * Purpose:
+ *     Change the device_token of a controller.
+ *
+ * IMPORTANT:
+ *     This page is NOT part of the customer control panel.
+ *
+ *     Customers should NOT be given:
+ *         owner_token.php
+ *
+ * Owner authentication:
+ *     OWNER_PASSWORD from config.php
+ *
+ * Database:
+ *     TiDB Cloud
+ *     esp_switch5
+ *
+ * Timezone:
+ *     Asia/Kolkata
+ * ============================================================
+ */
 
 
-/* =========================================================
-   TIMEZONE
-========================================================= */
+// ============================================================
+// CONFIGURATION
+// ============================================================
 
-date_default_timezone_set("Asia/Kolkata");
+require_once __DIR__ . "/config.php";
 
 
-/* =========================================================
-   DATABASE
-========================================================= */
+// ============================================================
+// DATABASE
+// ============================================================
 
 require_once __DIR__ . "/db.php";
 
 
-/* =========================================================
-   SESSION
-========================================================= */
+// ============================================================
+// SESSION
+// ============================================================
 
 session_start();
 
 
-/* =========================================================
-   OWNER PASSWORD
-========================================================= */
-
-$owner_password =
-    getenv("OWNER_PASSWORD") ?: "";
-
-
-/* =========================================================
-   LOGOUT
-========================================================= */
+// ============================================================
+// LOGOUT
+// ============================================================
 
 if (isset($_GET["logout"])) {
 
@@ -75,9 +64,9 @@ if (isset($_GET["logout"])) {
 }
 
 
-/* =========================================================
-   LOGIN
-========================================================= */
+// ============================================================
+// LOGIN
+// ============================================================
 
 $login_error = "";
 
@@ -111,9 +100,9 @@ if (isset($_POST["owner_login"])) {
 }
 
 
-/* =========================================================
-   LOGIN PAGE
-========================================================= */
+// ============================================================
+// LOGIN PAGE
+// ============================================================
 
 if (
     !isset($_SESSION["esp_owner"]) ||
@@ -121,6 +110,7 @@ if (
 ) {
 
 ?>
+
 <!DOCTYPE html>
 
 <html lang="en">
@@ -276,6 +266,8 @@ OWNER ACCESS
 
 This page is for owner use only.
 
+<br>
+
 Do not give this page or its password
 to customers.
 
@@ -335,18 +327,18 @@ exit;
 }
 
 
-/* =========================================================
-   MESSAGE
-========================================================= */
+// ============================================================
+// MESSAGE
+// ============================================================
 
 $message = "";
 
 $message_type = "";
 
 
-/* =========================================================
-   CHANGE DEVICE TOKEN
-========================================================= */
+// ============================================================
+// CHANGE DEVICE TOKEN
+// ============================================================
 
 if (isset($_POST["change_token"])) {
 
@@ -361,9 +353,9 @@ if (isset($_POST["change_token"])) {
         );
 
 
-    /* -----------------------------------------------------
-       CONTROLLER ID VALIDATION
-    ----------------------------------------------------- */
+    // --------------------------------------------------------
+    // CONTROLLER ID VALIDATION
+    // --------------------------------------------------------
 
     if ($controller_id === "") {
 
@@ -375,9 +367,9 @@ if (isset($_POST["change_token"])) {
     }
 
 
-    /* -----------------------------------------------------
-       TOKEN VALIDATION
-    ----------------------------------------------------- */
+    // --------------------------------------------------------
+    // TOKEN VALIDATION
+    // --------------------------------------------------------
 
     elseif ($new_token === "") {
 
@@ -392,15 +384,15 @@ if (isset($_POST["change_token"])) {
     /*
      * Allow manually selected tokens.
      *
-     * We allow:
+     * Allowed:
      *   A-Z
      *   a-z
      *   0-9
      *   hyphen
      *   underscore
      *
-     * This gives you freedom to change
-     * one character of your existing token.
+     * Length:
+     *   8-100 characters
      */
 
     elseif (
@@ -422,9 +414,9 @@ if (isset($_POST["change_token"])) {
 
     else {
 
-        /* -------------------------------------------------
-           VERIFY CONTROLLER EXISTS
-        ------------------------------------------------- */
+        // ----------------------------------------------------
+        // VERIFY CONTROLLER EXISTS
+        // ----------------------------------------------------
 
         $stmt =
             $conn->prepare("
@@ -471,9 +463,9 @@ if (isset($_POST["change_token"])) {
                 $stmt->close();
 
 
-                /* -----------------------------------------
-                   UPDATE DEVICE TOKEN
-                ----------------------------------------- */
+                // --------------------------------------------
+                // UPDATE DEVICE TOKEN
+                // --------------------------------------------
 
                 $update =
                     $conn->prepare("
@@ -534,9 +526,9 @@ if (isset($_POST["change_token"])) {
 }
 
 
-/* =========================================================
-   READ CONTROLLERS
-========================================================= */
+// ============================================================
+// READ CONTROLLERS
+// ============================================================
 
 $controllers = [];
 
@@ -565,6 +557,7 @@ if ($result) {
 }
 
 ?>
+
 <!DOCTYPE html>
 
 <html lang="en">
@@ -677,7 +670,6 @@ label {
     font-weight: bold;
 
     margin-bottom: 8px;
-
 }
 
 select,
@@ -971,11 +963,17 @@ CHANGE DEVICE TOKEN
 The token entered here will replace the existing
 Device Token in the <strong>controllers</strong> table.
 
+<br><br>
+
 The ESP8266 must have the matching token programmed
 into its firmware to communicate with the server.
 
+<br><br>
+
 If you deliberately enter a different token, the
 existing ESP8266 will no longer be authorized.
+
+<br><br>
 
 This can therefore be used to deactivate a customer's
 controller.
