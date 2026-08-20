@@ -63,8 +63,6 @@ session_start();
 ========================================================= */
 
 /*
- * IMPORTANT:
- *
  * This page uses:
  *
  *     TOKEN_PASSWORD
@@ -458,84 +456,105 @@ if (isset($_POST["change_token"])) {
                 $controller_id
             );
 
-            $stmt->execute();
-
-            $result =
-                $stmt->get_result();
-
-
-            if (
-                $result->num_rows === 0
-            ) {
+            if (!$stmt->execute()) {
 
                 $message =
-                    "Controller not found.";
+                    "Controller verification failed.";
 
                 $message_type =
                     "error";
 
-            } else {
-
+                /* Close statement exactly once */
                 $stmt->close();
 
+            } else {
 
-                /* -----------------------------------------
-                   UPDATE DEVICE TOKEN
-                ----------------------------------------- */
-
-                $update =
-                    $conn->prepare("
-                        UPDATE controllers
-                        SET device_token = ?
-                        WHERE controller_id = ?
-                    ");
+                $result =
+                    $stmt->get_result();
 
 
-                if (!$update) {
+                if (
+                    $result->num_rows === 0
+                ) {
 
                     $message =
-                        "Token update preparation failed.";
+                        "Controller not found.";
 
                     $message_type =
                         "error";
 
+                    /* Close statement exactly once */
+                    $stmt->close();
+
                 } else {
 
-                    $update->bind_param(
-                        "ss",
-                        $new_token,
-                        $controller_id
-                    );
+                    /*
+                     * Controller exists.
+                     *
+                     * Close the SELECT statement here.
+                     * It will NOT be closed again below.
+                     */
+
+                    $stmt->close();
 
 
-                    if ($update->execute()) {
+                    /* -------------------------------------
+                       UPDATE DEVICE TOKEN
+                    ------------------------------------- */
+
+                    $update =
+                        $conn->prepare("
+                            UPDATE controllers
+                            SET device_token = ?
+                            WHERE controller_id = ?
+                        ");
+
+
+                    if (!$update) {
 
                         $message =
-                            "Device Token changed successfully " .
-                            "for controller " .
-                            $controller_id .
-                            ".";
-
-                        $message_type =
-                            "success";
-
-                    } else {
-
-                        $message =
-                            "Device Token update failed.";
+                            "Token update preparation failed.";
 
                         $message_type =
                             "error";
+
+                    } else {
+
+                        $update->bind_param(
+                            "ss",
+                            $new_token,
+                            $controller_id
+                        );
+
+
+                        if ($update->execute()) {
+
+                            $message =
+                                "Device Token changed successfully " .
+                                "for controller " .
+                                $controller_id .
+                                ".";
+
+                            $message_type =
+                                "success";
+
+                        } else {
+
+                            $message =
+                                "Device Token update failed.";
+
+                            $message_type =
+                                "error";
+                        }
+
+
+                        /*
+                         * Close UPDATE statement exactly once.
+                         */
+
+                        $update->close();
                     }
-
-
-                    $update->close();
                 }
-            }
-
-
-            if ($stmt) {
-                $stmt->close();
             }
         }
     }
