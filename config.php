@@ -3,78 +3,145 @@
  * ============================================================
  * ESP-SWITCH5 REMOTE - config.php
  * ============================================================
- * Remote version
  *
- * Render:
+ * Remote:
  *   esp-switch5-remote.onrender.com
  *
  * Database:
  *   TiDB Cloud
  *
+ * Passwords:
+ *
+ *   ADMIN_PASSWORD
+ *       Used by index.php
+ *
+ *   TOKEN_PASSWORD
+ *       Used by owner_token.php
+ *
  * IMPORTANT:
- * Database credentials are read from environment variables.
- * Do NOT put passwords directly into this file.
+ * Passwords and database credentials are stored
+ * in Render Environment Variables.
+ *
+ * Do NOT put actual passwords in this file.
  * ============================================================
  */
 
-// ------------------------------------------------------------
-// TIMEZONE
-// ------------------------------------------------------------
+
+/* =========================================================
+   TIMEZONE
+========================================================= */
+
 date_default_timezone_set("Asia/Kolkata");
 
 
-// ------------------------------------------------------------
-// APPLICATION
-// ------------------------------------------------------------
-define("APP_NAME", "ESP-SWITCH5 REMOTE");
+/* =========================================================
+   APPLICATION
+========================================================= */
+
+define(
+    "APP_NAME",
+    "ESP-SWITCH5 REMOTE"
+);
 
 
-// ------------------------------------------------------------
-// DATABASE
-// ------------------------------------------------------------
-// These values will be supplied by Render Environment Variables.
-//
-// DB_HOST
-// DB_USER
-// DB_PASSWORD
-// DB_NAME
-// DB_PORT
-//
-$db_host = getenv("DB_HOST") ?: "";
-$db_user = getenv("DB_USER") ?: "";
-$db_password = getenv("DB_PASSWORD") ?: "";
-$db_name = getenv("DB_NAME") ?: "";
-$db_port = getenv("DB_PORT") ?: "4000";
+/* =========================================================
+   DATABASE
+========================================================= */
+
+$db_host =
+    getenv("DB_HOST") ?: "";
+
+$db_user =
+    getenv("DB_USER") ?: "";
+
+$db_password =
+    getenv("DB_PASSWORD") ?: "";
+
+$db_name =
+    getenv("DB_NAME") ?: "";
+
+$db_port =
+    getenv("DB_PORT") ?: "4000";
 
 
-// ------------------------------------------------------------
-// CONTROLLER / API SETTINGS
-// ------------------------------------------------------------
+/* =========================================================
+   ADMIN PASSWORD
+========================================================= */
 
-// API request timeout in seconds
-define("API_TIMEOUT", 10);
+/*
+ * Used by:
+ *
+ *     index.php
+ *
+ * Render Environment Variable:
+ *
+ *     ADMIN_PASSWORD
+ */
 
-// ESP polling interval in seconds
-define("ESP_POLL_INTERVAL", 3);
+$admin_password =
+    getenv("ADMIN_PASSWORD") ?: "";
 
 
-// ------------------------------------------------------------
-// DEBUG
-// ------------------------------------------------------------
-// Keep false on the live Render server.
-define("DEBUG_MODE", false);
+/* =========================================================
+   TOKEN PASSWORD
+========================================================= */
+
+/*
+ * Used by:
+ *
+ *     owner_token.php
+ *
+ * Render Environment Variable:
+ *
+ *     TOKEN_PASSWORD
+ */
+
+$token_password =
+    getenv("TOKEN_PASSWORD") ?: "";
 
 
-// ------------------------------------------------------------
-// BASIC VALIDATION
-// ------------------------------------------------------------
+/* =========================================================
+   CONTROLLER / API SETTINGS
+========================================================= */
+
+define(
+    "API_TIMEOUT",
+    10
+);
+
+define(
+    "ESP_POLL_INTERVAL",
+    3
+);
+
+
+/* =========================================================
+   DEBUG
+========================================================= */
+
+define(
+    "DEBUG_MODE",
+    false
+);
+
+
+/* =========================================================
+   BASIC DATABASE VALIDATION
+========================================================= */
+
 if (
     $db_host === "" ||
     $db_user === "" ||
     $db_name === ""
 ) {
+
     if (DEBUG_MODE) {
-        die("Database environment variables are not configured.");
+
+        die(
+            "Database environment variables " .
+            "are not configured."
+        );
     }
 }
+
 ?>
