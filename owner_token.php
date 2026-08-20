@@ -15,7 +15,7 @@ IMPORTANT:
         owner_token.php
 
 Owner authentication:
-    OWNER_PASSWORD environment variable
+    TOKEN_PASSWORD environment variable
 
 Database:
     TiDB Cloud
@@ -38,6 +38,13 @@ date_default_timezone_set("Asia/Kolkata");
 
 
 /* =========================================================
+   CONFIGURATION
+========================================================= */
+
+require_once __DIR__ . "/config.php";
+
+
+/* =========================================================
    DATABASE
 ========================================================= */
 
@@ -52,11 +59,23 @@ session_start();
 
 
 /* =========================================================
-   OWNER PASSWORD
+   OWNER TOKEN PASSWORD
 ========================================================= */
 
-$owner_password =
-    getenv("OWNER_PASSWORD") ?: "";
+/*
+ * IMPORTANT:
+ *
+ * This page uses:
+ *
+ *     TOKEN_PASSWORD
+ *
+ * from the Render Environment Variables.
+ *
+ * It does NOT use OWNER_PASSWORD.
+ */
+
+$token_password =
+    getenv("TOKEN_PASSWORD") ?: "";
 
 
 /* =========================================================
@@ -69,7 +88,9 @@ if (isset($_GET["logout"])) {
 
     session_destroy();
 
-    header("Location: owner_token.php");
+    header(
+        "Location: owner_token.php"
+    );
 
     exit;
 }
@@ -88,9 +109,9 @@ if (isset($_POST["owner_login"])) {
 
 
     if (
-        $owner_password !== "" &&
+        $token_password !== "" &&
         hash_equals(
-            $owner_password,
+            $token_password,
             $password
         )
     ) {
@@ -121,6 +142,7 @@ if (
 ) {
 
 ?>
+
 <!DOCTYPE html>
 
 <html lang="en">
@@ -389,20 +411,6 @@ if (isset($_POST["change_token"])) {
     }
 
 
-    /*
-     * Allow manually selected tokens.
-     *
-     * We allow:
-     *   A-Z
-     *   a-z
-     *   0-9
-     *   hyphen
-     *   underscore
-     *
-     * This gives you freedom to change
-     * one character of your existing token.
-     */
-
     elseif (
         !preg_match(
             '/^[A-Za-z0-9_-]{8,100}$/',
@@ -565,6 +573,7 @@ if ($result) {
 }
 
 ?>
+
 <!DOCTYPE html>
 
 <html lang="en">
